@@ -2,7 +2,7 @@
  * Simple integration tests for the SDK
  */
 
-import { Agent, type AgentResponse, type Context } from "../dist/index.js";
+import { Agent, type AgentResponse, type Context } from "../src/index.js";
 
 // Simple test agents
 class SimpleEchoAgent extends Agent {

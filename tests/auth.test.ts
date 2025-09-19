@@ -10,7 +10,7 @@ import {
   createAPIKeyAuth,
   createBasicAuth,
   createBearerTokenAuth,
-} from "../dist/index.js";
+} from "../src/index.js";
 
 // Mock Express request/response objects
 const mockRequest = (headers: Record<string, string> = {}): Partial<Request> => ({
