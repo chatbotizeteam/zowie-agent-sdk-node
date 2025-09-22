@@ -92,19 +92,19 @@ flowchart TD
 ### Using npm
 
 ```bash
-npm install zowie-agent-sdk
+npm install @zowieteam/zowie-agent-sdk
 ```
 
 ### Using pnpm (recommended)
 
 ```bash
-pnpm add zowie-agent-sdk
+pnpm add @zowieteam/zowie-agent-sdk
 ```
 
 ### Using yarn
 
 ```bash
-yarn add zowie-agent-sdk
+yarn add @zowieteam/zowie-agent-sdk
 ```
 
 ### Dependencies
@@ -126,7 +126,7 @@ The SDK requires Node.js 20+ and includes the following core dependencies:
 Create a simple agent that responds to user messages using an LLM.
 
 ```typescript
-import { Agent, type AgentResponse, type Context } from "zowie-agent-sdk";
+import { Agent, type AgentResponse, type Context } from "@zowieteam/zowie-agent-sdk";
 
 class CustomerSupportAgent extends Agent {
   async handle(context: Context): Promise<AgentResponse> {
@@ -213,7 +213,7 @@ Configure the LLM provider using one of the following configuration objects.
 #### Google Gemini
 
 ```typescript
-import type { GoogleProviderConfig } from "zowie-agent-sdk";
+import type { GoogleProviderConfig } from "@zowieteam/zowie-agent-sdk";
 
 const llmConfig: GoogleProviderConfig = {
   provider: "google",
@@ -228,7 +228,7 @@ const llmConfig: GoogleProviderConfig = {
 #### OpenAI GPT
 
 ```typescript
-import type { OpenAIProviderConfig } from "zowie-agent-sdk";
+import type { OpenAIProviderConfig } from "@zowieteam/zowie-agent-sdk";
 
 const llmConfig: OpenAIProviderConfig = {
   provider: "openai",
@@ -247,7 +247,7 @@ Secure your agent's endpoint using an authentication strategy that matches your 
 #### API Key Authentication
 
 ```typescript
-import type { APIKeyAuth } from "zowie-agent-sdk";
+import type { APIKeyAuth } from "@zowieteam/zowie-agent-sdk";
 
 const authConfig: APIKeyAuth = {
   type: "api_key",
@@ -262,7 +262,7 @@ const authConfig: APIKeyAuth = {
 #### Basic Authentication
 
 ```typescript
-import type { BasicAuth } from "zowie-agent-sdk";
+import type { BasicAuth } from "@zowieteam/zowie-agent-sdk";
 
 const authConfig: BasicAuth = {
   type: "basic",
@@ -277,7 +277,7 @@ const authConfig: BasicAuth = {
 #### Bearer Token Authentication
 
 ```typescript
-import type { BearerTokenAuth } from "zowie-agent-sdk";
+import type { BearerTokenAuth } from "@zowieteam/zowie-agent-sdk";
 
 const authConfig: BearerTokenAuth = {
   type: "bearer",
@@ -351,7 +351,7 @@ The `Agent` class is the base for all agents. Inherit from this class and implem
 - `app: FastAPI`: The FastAPI application instance exposed for deployment (e.g., `uvicorn myagent:agent.app`).
 
 ```typescript
-import { Agent, type AgentResponse, type Context } from "zowie-agent-sdk";
+import { Agent, type AgentResponse, type Context } from "@zowieteam/zowie-agent-sdk";
 
 class MyAgent extends Agent {
   async handle(context: Context): Promise<AgentResponse> {
@@ -886,12 +886,12 @@ Use Jest with mocking to test your agent's logic without making real network cal
 
 ```typescript
 import { jest } from "@jest/globals";
-import { Agent, type Context } from "zowie-agent-sdk";
+import { Agent, type Context } from "@zowieteam/zowie-agent-sdk";
 
 // Mocking an HTTP request
 const mockHttpGet = jest.fn();
-jest.mock("zowie-agent-sdk", () => ({
-  ...jest.requireActual("zowie-agent-sdk"),
+jest.mock("@zowieteam/zowie-agent-sdk", () => ({
+  ...jest.requireActual("@zowieteam/zowie-agent-sdk"),
   HTTPClient: jest.fn().mockImplementation(() => ({
     get: mockHttpGet,
   })),

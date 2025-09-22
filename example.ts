@@ -13,14 +13,14 @@
  * through an intelligent conversational interface.
  */
 
-import { z } from "zod";
 import {
   Agent,
   type AgentResponse,
   type AuthConfig,
   type Context,
   type LLMConfig,
-} from "zowie-agent-sdk";
+} from "@zowieteam/zowie-agent-sdk";
+import { z } from "zod";
 
 // Document types enum
 const DocumentTypeSchema = z.enum([

@@ -1,5 +1,5 @@
 {
-  "name": "zowie-agent-sdk",
+  "name": "@zowieteam/zowie-agent-sdk",
   "version": "0.1.0",
   "description": "Node.js/TypeScript SDK for building external agents that integrate with Zowie Decision Engine",
   "type": "module",
@@ -38,13 +38,15 @@
     "clean": "rm -rf dist",
     "install:clean": "rm -rf node_modules pnpm-lock.yaml && pnpm install"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "zowie",
     "agent",
     "sdk",
     "typescript",
     "ai",
-    "chatbot",
     "llm",
     "openai",
     "google",
@@ -57,7 +59,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zowie-ai/zowie-agent-sdk-node.git"
+    "url": "git+https://github.com/zowie-ai/zowie-agent-sdk-node.git"
   },
   "bugs": {
     "url": "https://github.com/zowie-ai/zowie-agent-sdk-node/issues"
