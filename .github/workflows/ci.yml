@@ -44,7 +44,7 @@ jobs:
         run: pnpm test
 
       - name: Validate example.ts compiles
-        run: pnpm exec tsc --noEmit example.ts
+        run: pnpm exec tsc --noEmit --project tsconfig.example.json
 
-      - name: Test example agent (syntax check)
+      - name: Test build output (syntax check)
         run: node --check dist/index.js

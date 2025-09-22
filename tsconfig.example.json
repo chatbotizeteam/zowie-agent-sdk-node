@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ES2022",
+    "rootDir": ".",
+    "paths": {
+      "@zowieteam/zowie-agent-sdk": ["./src/index.ts"]
+    }
+  },
+  "include": ["example.ts", "src/**/*"]
+}
