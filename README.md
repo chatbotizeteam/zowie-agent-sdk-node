@@ -126,7 +126,11 @@ The SDK requires Node.js 20+ and includes the following core dependencies:
 Create a simple agent that responds to user messages using an LLM.
 
 ```typescript
-import { Agent, type AgentResponse, type Context } from "@zowieteam/zowie-agent-sdk";
+import {
+  Agent,
+  type AgentResponse,
+  type Context,
+} from "@zowieteam/zowie-agent-sdk";
 
 class CustomerSupportAgent extends Agent {
   async handle(context: Context): Promise<AgentResponse> {
@@ -189,7 +193,7 @@ The repository includes a complete example (`example.ts`) demonstrating a **Docu
 
 **Key Features Demonstrated:**
 
-- `generate_structured_content()` for intent analysis
+- `generateStructuredContent()` for intent analysis
 - `TransferToBlockResponse` for seamless handoffs
 - `context.http` for internal API calls with automatic logging and Supervisor visibility
 - Expert system pattern for specialized business logic
@@ -308,50 +312,21 @@ const agent = new MyAgent({
 
 ## Usage Guide and API Reference
 
-### Naming Conventions: `camelCase` in TypeScript
-
-The Node.js SDK uses **`camelCase`** for all object properties, following JavaScript/TypeScript conventions. The underlying JSON API that communicates with Zowie's Decision Engine also uses **`camelCase`** for all JSON keys.
-
-**Example:**
-
-In your TypeScript agent, you use `camelCase`:
-
-```typescript
-// In your TypeScript code, you use camelCase
-return {
-  type: "finish",
-  nextBlock: "human-handoff-block-key",
-  message: "Let me get a human for you.",
-};
-```
-
-This directly corresponds to the JSON sent over the wire:
-
-```json
-// The resulting JSON sent over the wire uses camelCase
-{
-  "command": {
-    "type": "go_to_next_block",
-    "payload": {
-      "nextBlockReferenceKey": "human-handoff-block-key",
-      "message": "Let me get a human for you."
-    }
-  },
-  ...
-}
-```
-
 ### Agent Class
 
 The `Agent` class is the base for all agents. Inherit from this class and implement the `handle` method.
 
 #### Agent Properties
 
-- `logger: logging.Logger`: Logger instance for this agent, automatically configured with the agent's class name (e.g., `zowie_agent.MyAgent`).
-- `app: FastAPI`: The FastAPI application instance exposed for deployment (e.g., `uvicorn myagent:agent.app`).
+- `logger: winston.Logger`: Logger instance for this agent, automatically configured with the agent's class name (e.g., `zowie_agent.MyAgent`).
+- `app: Express`: The Express application instance exposed for advanced customization and deployment.
 
 ```typescript
-import { Agent, type AgentResponse, type Context } from "@zowieteam/zowie-agent-sdk";
+import {
+  Agent,
+  type AgentResponse,
+  type Context,
+} from "@zowieteam/zowie-agent-sdk";
 
 class MyAgent extends Agent {
   async handle(context: Context): Promise<AgentResponse> {
@@ -375,7 +350,7 @@ class MyAgent extends Agent {
 
 #### Logging Configuration
 
-The agent automatically sets up logging with the specified log level (default: "INFO"). You can customize the log level during agent initialization:
+The agent automatically sets up logging with the specified log level (default: "info"). You can customize the log level during agent initialization:
 
 ```typescript
 const agent = new MyAgent({
@@ -384,7 +359,7 @@ const agent = new MyAgent({
 });
 ```
 
-**Note**: The SDK automatically logs request start/end and errors. Use `self.logger` for business logic events, debugging, and monitoring specific to your agent's functionality.
+**Note**: The SDK automatically logs request start/end and errors. Use `this.logger` for business logic events, debugging, and monitoring specific to your agent's functionality.
 
 For a complete example of effective logging usage, see the `DocumentVerificationExpertAgent` in `example.ts`, which demonstrates logging for query analysis, scope decisions, and error handling.
 
@@ -393,12 +368,12 @@ For a complete example of effective logging usage, see the `DocumentVerification
 The `Context` object provides access to all request data and pre-configured clients.
 
 - `metadata: Metadata`: Request metadata (IDs, timestamps).
-- `messages: List[Message]`: Conversation message history.
-- `context: Optional[str]`: Context string from the Zowie configuration.
-- `persona: Optional[Persona]`: Chatbot persona information.
+- `messages: Message[]`: Conversation message history.
+- `context?: string`: Context string from the Zowie configuration.
+- `persona?: Persona`: Chatbot persona information.
 - `llm: LLM`: LLM client with automatic context injection and event tracking.
 - `http: HTTPClient`: HTTP client with automatic event tracking.
-- `store_value: Callable[[str, Any], None]`: Function to store values in the Decision Engine.
+- `storeValue: (key: string, value: unknown) => void`: Function to store values in the Decision Engine.
 
 The primary data objects within the `Context` have the following structure:
 
@@ -854,7 +829,7 @@ A simple health check endpoint for monitoring.
 
 ## Request Validation
 
-All incoming requests to the `POST /` endpoint are automatically validated against a Pydantic model. Invalid requests will receive an HTTP 422 Unprocessable Entity response with detailed validation errors.
+All incoming requests to the `POST /` endpoint are automatically validated using Zod schemas. Invalid requests will receive an HTTP 400 Bad Request response with validation details.
 
 The validation is forward-compatible, meaning new fields added by Zowie in the future will be ignored and won't break your agent.
 
