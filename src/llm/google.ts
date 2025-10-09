@@ -11,6 +11,7 @@ import { BaseLLMProvider } from "./base.js";
 
 export class GoogleProvider extends BaseLLMProvider {
   private genAI?: GoogleGenAI;
+  private readonly thinkingBudget: number | undefined;
 
   constructor(
     config: GoogleProviderConfig,
@@ -18,6 +19,7 @@ export class GoogleProvider extends BaseLLMProvider {
     includeContextDefault = true
   ) {
     super(config, "GoogleProvider", includePersonaDefault, includeContextDefault);
+    this.thinkingBudget = config.thinkingBudget;
   }
 
   private getGenAI() {
@@ -63,6 +65,11 @@ export class GoogleProvider extends BaseLLMProvider {
             ...(systemInstructionText && {
               systemInstruction: systemInstructionText,
             }),
+            ...(this.thinkingBudget !== undefined && {
+              thinkingConfig: {
+                thinkingBudget: this.thinkingBudget,
+              },
+            }),
           },
         });
         return response.text || "";
@@ -107,6 +114,11 @@ export class GoogleProvider extends BaseLLMProvider {
             }),
             responseMimeType: "application/json",
             responseSchema,
+            ...(this.thinkingBudget !== undefined && {
+              thinkingConfig: {
+                thinkingBudget: this.thinkingBudget,
+              },
+            }),
           },
         });
 

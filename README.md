@@ -223,11 +223,17 @@ const llmConfig: GoogleProviderConfig = {
   provider: "google",
   apiKey: process.env.GOOGLE_API_KEY || "",
   model: "gemini-2.5-flash", // or "gemini-2.5-pro"
+  thinkingBudget: 0, // Optional: control thinking level
 };
 ```
 
 - **apiKey** (`string`): Your Google AI API key.
 - **model** (`string`): The model name to use.
+- **thinkingBudget** (`number`, optional): Controls the reasoning token budget for thinking-capable models (e.g., gemini-2.5-pro).
+  - Positive values (e.g., `1024`, `2048`): Set a specific token budget for reasoning
+  - `0`: Disable thinking/reasoning
+  - `-1`: Enable dynamic thinking budget
+  - Minimum budget for gemini-2.5-pro: `128` tokens
 
 #### OpenAI GPT
 
@@ -238,11 +244,16 @@ const llmConfig: OpenAIProviderConfig = {
   provider: "openai",
   apiKey: process.env.OPENAI_API_KEY || "",
   model: "gpt-5-mini", // or "gpt-5"
+  reasoningEffort: "low", // Optional: tune reasoning level
 };
 ```
 
 - **apiKey** (`string`): Your OpenAI API key.
 - **model** (`string`): The model name to use.
+- **reasoningEffort** (`"low" | "medium" | "high"`, optional): Controls the reasoning effort for reasoning models (o1, o3, GPT-5 series).
+  - `"low"`: ~20% of max_tokens allocated for reasoning (faster, less thorough)
+  - `"medium"`: ~50% of max_tokens allocated for reasoning (balanced, default)
+  - `"high"`: ~80% of max_tokens allocated for reasoning (slower, more thorough)
 
 ### Authentication Configuration
 

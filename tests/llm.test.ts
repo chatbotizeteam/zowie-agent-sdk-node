@@ -30,11 +30,33 @@ describe("LLM Integration", () => {
       expect(llm).toBeDefined();
     });
 
+    it("should create Google provider with thinkingBudget config", () => {
+      const config: GoogleProviderConfig = {
+        provider: "google",
+        apiKey: "test-key",
+        model: "gemini-2.5-pro",
+        thinkingBudget: 1024,
+      };
+      const llm = new LLM(config, true, true);
+      expect(llm).toBeDefined();
+    });
+
     it("should create OpenAI provider with correct config", () => {
       const config: OpenAIProviderConfig = {
         provider: "openai",
         apiKey: "test-key",
         model: "gpt-5-mini",
+      };
+      const llm = new LLM(config, true, true);
+      expect(llm).toBeDefined();
+    });
+
+    it("should create OpenAI provider with reasoningEffort config", () => {
+      const config: OpenAIProviderConfig = {
+        provider: "openai",
+        apiKey: "test-key",
+        model: "o1",
+        reasoningEffort: "high",
       };
       const llm = new LLM(config, true, true);
       expect(llm).toBeDefined();
