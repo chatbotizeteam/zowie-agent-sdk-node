@@ -187,6 +187,7 @@ export abstract class Agent {
     // Main agent endpoint with authentication
     this.app.post("/", this.authValidator.middleware(), async (req: Request, res: Response) => {
       const requestId = "unknown";
+      const startTime = Date.now();
       try {
         // Validate the complete incoming request
         const request: IncomingRequest = parseIncomingRequest(req.body);
@@ -214,8 +215,6 @@ export abstract class Agent {
 
         const result = await this.handle(context);
 
-        this.logger.info("Request processed successfully", { requestId: actualRequestId });
-
         // Build response directly - TypeScript ensures type safety
         const response: ExternalAgentResponse = {
           command:
@@ -235,12 +234,19 @@ export abstract class Agent {
           events: events.length > 0 ? events : undefined,
         };
 
+        this.logger.info("Request processed successfully", {
+          requestId: actualRequestId,
+          durationMs: Date.now() - startTime,
+        });
+
         res.json(response);
       } catch (error) {
+        const durationMs = Date.now() - startTime;
         // Check if it's a validation error (Zod error)
         if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
           this.logger.warn("Invalid request format", {
             requestId,
+            durationMs,
             error: error instanceof Error ? error.message : String(error),
           });
           res.status(400).json({
@@ -250,6 +256,7 @@ export abstract class Agent {
         } else {
           this.logger.error("Error processing request", {
             requestId,
+            durationMs,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
           });
