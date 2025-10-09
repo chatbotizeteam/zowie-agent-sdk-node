@@ -25,12 +25,14 @@ export interface OpenAIProviderConfig {
   provider: "openai";
   apiKey: string;
   model: string;
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
 }
 
 export interface GoogleProviderConfig {
   provider: "google";
   apiKey: string;
   model: string;
+  thinkingBudget?: number;
 }
 
 export type LLMConfig = OpenAIProviderConfig | GoogleProviderConfig;

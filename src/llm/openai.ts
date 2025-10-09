@@ -12,6 +12,7 @@ import { BaseLLMProvider } from "./base.js";
 
 export class OpenAIProvider extends BaseLLMProvider {
   private openai?: OpenAI;
+  private readonly reasoningEffort: "minimal" | "low" | "medium" | "high" | undefined;
 
   constructor(
     config: OpenAIProviderConfig,
@@ -19,6 +20,7 @@ export class OpenAIProvider extends BaseLLMProvider {
     includeContextDefault = true
   ) {
     super(config, "OpenAIProvider", includePersonaDefault, includeContextDefault);
+    this.reasoningEffort = config.reasoningEffort;
   }
 
   private getOpenAI() {
@@ -60,6 +62,9 @@ export class OpenAIProvider extends BaseLLMProvider {
         const completion = await openai.chat.completions.create({
           model: this.model,
           messages: openaiMessages,
+          ...(this.reasoningEffort && {
+            reasoning_effort: this.reasoningEffort,
+          }),
         });
 
         const content = completion.choices[0]?.message?.content;
@@ -103,6 +108,9 @@ export class OpenAIProvider extends BaseLLMProvider {
           model: this.model,
           messages: openaiMessages,
           response_format: zodResponseFormat(schema, "response"),
+          ...(this.reasoningEffort && {
+            reasoning_effort: this.reasoningEffort,
+          }),
         });
 
         const message = completion.choices[0]?.message;
