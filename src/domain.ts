@@ -25,7 +25,7 @@ export interface OpenAIProviderConfig {
   provider: "openai";
   apiKey: string;
   model: string;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
 }
 
 export interface GoogleProviderConfig {

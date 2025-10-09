@@ -250,10 +250,11 @@ const llmConfig: OpenAIProviderConfig = {
 
 - **apiKey** (`string`): Your OpenAI API key.
 - **model** (`string`): The model name to use.
-- **reasoningEffort** (`"low" | "medium" | "high"`, optional): Controls the reasoning effort for reasoning models (o1, o3, GPT-5 series).
-  - `"low"`: ~20% of max_tokens allocated for reasoning (faster, less thorough)
-  - `"medium"`: ~50% of max_tokens allocated for reasoning (balanced, default)
-  - `"high"`: ~80% of max_tokens allocated for reasoning (slower, more thorough)
+- **reasoningEffort** (`"minimal" | "low" | "medium" | "high"`, optional): Controls the reasoning effort for reasoning models (o1, o3, GPT-5 series).
+  - `"minimal"`: Minimal reasoning tokens, fastest time-to-first-token
+  - `"low"`: Fewer reasoning tokens (faster)
+  - `"medium"`: Balanced reasoning tokens (default when not specified)
+  - `"high"`: More reasoning tokens (slower, more thorough)
 
 ### Authentication Configuration
 

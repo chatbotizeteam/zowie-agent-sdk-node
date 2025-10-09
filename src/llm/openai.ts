@@ -12,7 +12,7 @@ import { BaseLLMProvider } from "./base.js";
 
 export class OpenAIProvider extends BaseLLMProvider {
   private openai?: OpenAI;
-  private readonly reasoningEffort: "low" | "medium" | "high" | undefined;
+  private readonly reasoningEffort: "minimal" | "low" | "medium" | "high" | undefined;
 
   constructor(
     config: OpenAIProviderConfig,
@@ -63,7 +63,7 @@ export class OpenAIProvider extends BaseLLMProvider {
           model: this.model,
           messages: openaiMessages,
           ...(this.reasoningEffort && {
-            reasoningEffort: this.reasoningEffort,
+            reasoning_effort: this.reasoningEffort,
           }),
         });
 
