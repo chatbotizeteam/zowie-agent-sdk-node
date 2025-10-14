@@ -2,6 +2,7 @@
  * Google Generative AI provider implementation
  */
 
+import type { GenerateContentConfig } from "@google/genai";
 import { GoogleGenAI } from "@google/genai";
 import type { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -42,7 +43,8 @@ export class GoogleProvider extends BaseLLMProvider {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events: Event[] = []
+    events: Event[] = [],
+    parameters?: Partial<GenerateContentConfig>
   ): Promise<string> {
     const genAI = this.getGenAI();
 
@@ -70,13 +72,16 @@ export class GoogleProvider extends BaseLLMProvider {
                 thinkingBudget: this.thinkingBudget,
               },
             }),
+            ...parameters,
           },
         });
         return response.text || "";
       },
       messages,
       systemInstructionText,
-      events
+      events,
+      undefined,
+      parameters
     );
   }
 
@@ -88,7 +93,8 @@ export class GoogleProvider extends BaseLLMProvider {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events: Event[] = []
+    events: Event[] = [],
+    parameters?: Partial<GenerateContentConfig>
   ): Promise<T> {
     const genAI = this.getGenAI();
 
@@ -119,6 +125,7 @@ export class GoogleProvider extends BaseLLMProvider {
                 thinkingBudget: this.thinkingBudget,
               },
             }),
+            ...parameters,
           },
         });
 
@@ -134,7 +141,151 @@ export class GoogleProvider extends BaseLLMProvider {
       messages,
       systemInstructionText,
       events,
-      responseSchema
+      responseSchema,
+      parameters
+    );
+  }
+
+  async generateContentWithCandidates(
+    messages: Message[],
+    candidateCount: number,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events: Event[] = [],
+    parameters?: Partial<GenerateContentConfig>
+  ): Promise<string[]> {
+    const genAI = this.getGenAI();
+
+    const systemInstructionText = this.buildSystemInstruction(
+      systemInstruction,
+      includePersona,
+      includeContext,
+      persona,
+      context
+    );
+
+    const chatHistory = this.prepareHistory(messages);
+
+    return this.withTiming(
+      async () => {
+        const response = await genAI.models.generateContent({
+          model: this.model,
+          contents: chatHistory,
+          config: {
+            ...(systemInstructionText && {
+              systemInstruction: systemInstructionText,
+            }),
+            candidateCount,
+            ...(this.thinkingBudget !== undefined && {
+              thinkingConfig: {
+                thinkingBudget: this.thinkingBudget,
+              },
+            }),
+            ...parameters,
+          },
+        });
+
+        const results: string[] = [];
+        if (response.candidates) {
+          for (const candidate of response.candidates) {
+            const text = candidate.content?.parts?.[0]?.text;
+            if (text) {
+              results.push(text);
+            }
+          }
+        }
+
+        if (results.length === 0) {
+          throw new Error("No content received from Google");
+        }
+
+        return results;
+      },
+      messages,
+      systemInstructionText,
+      events,
+      undefined,
+      { ...parameters, candidateCount }
+    );
+  }
+
+  async generateStructuredContentWithCandidates<T>(
+    messages: Message[],
+    candidateCount: number,
+    schema: z.ZodSchema<T>,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events: Event[] = [],
+    parameters?: Partial<GenerateContentConfig>
+  ): Promise<T[]> {
+    const genAI = this.getGenAI();
+
+    const systemInstructionText = this.buildSystemInstruction(
+      systemInstruction,
+      includePersona,
+      includeContext,
+      persona,
+      context
+    );
+
+    const chatHistory = this.prepareHistory(messages);
+    const responseSchema = zodToJsonSchema(schema);
+
+    return this.withTiming(
+      async () => {
+        const response = await genAI.models.generateContent({
+          model: this.model,
+          contents: chatHistory,
+          config: {
+            ...(systemInstructionText && {
+              systemInstruction: systemInstructionText,
+            }),
+            responseMimeType: "application/json",
+            responseSchema,
+            candidateCount,
+            ...(this.thinkingBudget !== undefined && {
+              thinkingConfig: {
+                thinkingBudget: this.thinkingBudget,
+              },
+            }),
+            ...parameters,
+          },
+        });
+
+        const results: T[] = [];
+        if (response.candidates) {
+          for (const candidate of response.candidates) {
+            const text = candidate.content?.parts?.[0]?.text;
+            if (text) {
+              try {
+                const parsed = JSON.parse(text);
+                const validated = schema.parse(parsed);
+                results.push(validated);
+              } catch (error) {
+                // Skip invalid candidates
+                this.logger.warn(`Failed to parse candidate: ${error}`);
+              }
+            }
+          }
+        }
+
+        if (results.length === 0) {
+          throw new Error("No valid parsed content received from Google");
+        }
+
+        return results;
+      },
+      messages,
+      systemInstructionText,
+      events,
+      responseSchema,
+      { ...parameters, candidateCount }
     );
   }
 
