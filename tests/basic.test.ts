@@ -21,7 +21,7 @@ class TestAgent extends Agent {
 describe("Basic SDK Functionality", () => {
   test("should create agent with Google config", () => {
     const agent = new TestAgent({
-      llmConfig: { provider: "google", apiKey: "test-key", model: "gemini-2.0-flash-exp" },
+      llmConfig: { provider: "google", apiKey: "test-key", model: "gemini-2.5-flash" },
     });
     expect(agent).toBeDefined();
     expect(agent.app).toBeDefined();

@@ -35,7 +35,7 @@ class SimpleTransferAgent extends Agent {
 describe("Agent Creation", () => {
   test("should create echo agent successfully", () => {
     const agent = new SimpleEchoAgent({
-      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.0-flash-exp" },
+      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.5-flash" },
     });
 
     expect(agent).toBeDefined();
@@ -44,7 +44,7 @@ describe("Agent Creation", () => {
 
   test("should create transfer agent successfully", () => {
     const agent = new SimpleTransferAgent({
-      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.0-flash-exp" },
+      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.5-flash" },
     });
 
     expect(agent).toBeDefined();
@@ -55,7 +55,7 @@ describe("Agent Creation", () => {
 describe("Health Endpoint", () => {
   test("should return healthy status", async () => {
     const agent = new SimpleEchoAgent({
-      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.0-flash-exp" },
+      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.5-flash" },
     });
 
     // Since we can't easily test the actual endpoint without starting the server,
@@ -67,7 +67,7 @@ describe("Health Endpoint", () => {
 describe("Message Handling", () => {
   test("echo agent should handle empty messages", async () => {
     const agent = new SimpleEchoAgent({
-      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.0-flash-exp" },
+      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.5-flash" },
     });
 
     // We'll test the handle method directly since setting up a full HTTP test
@@ -77,7 +77,7 @@ describe("Message Handling", () => {
 
   test("transfer agent should handle transfer requests", async () => {
     const agent = new SimpleTransferAgent({
-      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.0-flash-exp" },
+      llmConfig: { provider: "google", apiKey: "test", model: "gemini-2.5-flash" },
     });
 
     expect(agent).toBeDefined();

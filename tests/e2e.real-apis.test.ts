@@ -172,7 +172,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
         llmConfig: {
           provider: "google",
           apiKey: process.env.GOOGLE_API_KEY!,
-          model: "gemini-2.0-flash-exp",
+          model: "gemini-2.5-flash",
         },
       });
 
@@ -220,7 +220,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
         llmConfig: {
           provider: "google",
           apiKey: process.env.GOOGLE_API_KEY!,
-          model: "gemini-2.0-flash-exp",
+          model: "gemini-2.5-flash",
         },
       });
 
@@ -363,7 +363,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
       llmConfig: {
         provider: "google",
         apiKey: "dummy-key-for-http-test",
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.5-flash",
       },
     });
 
@@ -406,5 +406,320 @@ describeWithApiKeys("Real API Integration Tests", () => {
     expect(apiEvent.payload.responseStatusCode).toBe(200);
 
     console.log(` Real HTTP response: ${message}`);
+  });
+
+  describeGoogle("Google Gemini with Parameters", () => {
+    test("should work with custom temperature parameter", async () => {
+      class ParameterTestAgent extends Agent {
+        async handle(context: Context): Promise<AgentResponse> {
+          if (context.messages.length === 0) {
+            return { type: "continue", message: "Send me a message" };
+          }
+
+          // Use high temperature for creative response
+          const response = await context.llm.generateContent(
+            context.messages,
+            "You are a creative assistant. Keep responses to 1-2 sentences.",
+            undefined,
+            undefined,
+            { temperature: 1.5 }
+          );
+
+          context.storeValue("used_custom_params", true);
+          return { type: "continue", message: response };
+        }
+      }
+
+      const agent = new ParameterTestAgent({
+        llmConfig: {
+          provider: "google",
+          apiKey: process.env.GOOGLE_API_KEY!,
+          model: "gemini-2.5-flash",
+        },
+      });
+
+      const requestData = {
+        metadata: {
+          requestId: "params-test-1",
+          chatbotId: "e2e-test-bot",
+          conversationId: "params-conv",
+        },
+        messages: [
+          {
+            author: "User" as const,
+            content: "Tell me a creative fact about space.",
+            timestamp: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+
+      // biome-ignore lint/suspicious/noExplicitAny: any is allowed in tests
+      const data = (await callAgent(agent, requestData)) as any;
+
+      expect(data.command.type).toBe("send_message");
+      expect(data.valuesToSave.used_custom_params).toBe(true);
+
+      const message = data.command.payload.message;
+      expect(typeof message).toBe("string");
+      expect(message.length).toBeGreaterThan(0);
+
+      console.log(` Response with custom parameters: ${message}`);
+    });
+
+    test("should generate multiple candidates", async () => {
+      class MultiCandidateAgent extends Agent {
+        async handle(context: Context): Promise<AgentResponse> {
+          if (context.messages.length === 0) {
+            return { type: "continue", message: "Send me a message" };
+          }
+
+          // Generate 3 different responses
+          const responses = await context.llm.generateContentWithCandidates(
+            context.messages,
+            3,
+            "You are a helpful assistant. Give a very short answer (5 words or less).",
+            undefined,
+            undefined,
+            { temperature: 0.9 }
+          );
+
+          context.storeValue("candidate_count", responses.length);
+          context.storeValue("candidate_1", responses[0]);
+          context.storeValue("candidate_2", responses[1]);
+          context.storeValue("candidate_3", responses[2]);
+
+          return {
+            type: "continue",
+            message: `Generated ${responses.length} responses:\n1. ${responses[0]}\n2. ${responses[1]}\n3. ${responses[2]}`,
+          };
+        }
+      }
+
+      const agent = new MultiCandidateAgent({
+        llmConfig: {
+          provider: "google",
+          apiKey: process.env.GOOGLE_API_KEY!,
+          model: "gemini-2.5-flash",
+        },
+      });
+
+      const requestData = {
+        metadata: {
+          requestId: "multi-candidate-test-1",
+          chatbotId: "e2e-test-bot",
+          conversationId: "multi-candidate-conv",
+        },
+        messages: [
+          {
+            author: "User" as const,
+            content: "What is 5+5?",
+            timestamp: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+
+      // biome-ignore lint/suspicious/noExplicitAny: any is allowed in tests
+      const data = (await callAgent(agent, requestData)) as any;
+
+      expect(data.command.type).toBe("send_message");
+      expect(data.valuesToSave.candidate_count).toBe(3);
+      expect(typeof data.valuesToSave.candidate_1).toBe("string");
+      expect(typeof data.valuesToSave.candidate_2).toBe("string");
+      expect(typeof data.valuesToSave.candidate_3).toBe("string");
+
+      console.log(` Generated ${data.valuesToSave.candidate_count} candidates:`);
+      console.log(`   1: ${data.valuesToSave.candidate_1}`);
+      console.log(`   2: ${data.valuesToSave.candidate_2}`);
+      console.log(`   3: ${data.valuesToSave.candidate_3}`);
+    });
+
+    test("should generate multiple structured candidates", async () => {
+      const SentimentSchema = z.object({
+        sentiment: z.enum(["positive", "neutral", "negative"]),
+        score: z.number().min(0).max(1),
+      });
+
+      class StructuredMultiCandidateAgent extends Agent {
+        async handle(context: Context): Promise<AgentResponse> {
+          if (context.messages.length === 0) {
+            return { type: "continue", message: "Send me a message" };
+          }
+
+          const analyses = await context.llm.generateStructuredContentWithCandidates(
+            context.messages,
+            3,
+            SentimentSchema,
+            "Analyze the sentiment of the user's message."
+          );
+
+          context.storeValue("analysis_count", analyses.length);
+          for (let i = 0; i < analyses.length; i++) {
+            context.storeValue(`analysis_${i + 1}_sentiment`, analyses[i]?.sentiment);
+            context.storeValue(`analysis_${i + 1}_score`, analyses[i]?.score);
+          }
+
+          return {
+            type: "continue",
+            message: `Generated ${analyses.length} sentiment analyses`,
+          };
+        }
+      }
+
+      const agent = new StructuredMultiCandidateAgent({
+        llmConfig: {
+          provider: "google",
+          apiKey: process.env.GOOGLE_API_KEY!,
+          model: "gemini-2.5-flash",
+        },
+      });
+
+      const requestData = {
+        metadata: {
+          requestId: "structured-multi-test-1",
+          chatbotId: "e2e-test-bot",
+          conversationId: "structured-multi-conv",
+        },
+        messages: [
+          {
+            author: "User" as const,
+            content: "I'm really happy with your service!",
+            timestamp: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+
+      // biome-ignore lint/suspicious/noExplicitAny: any is allowed in tests
+      const data = (await callAgent(agent, requestData)) as any;
+
+      expect(data.command.type).toBe("send_message");
+      expect(data.valuesToSave.analysis_count).toBe(3);
+
+      // Verify all analyses have valid sentiment and score
+      for (let i = 1; i <= 3; i++) {
+        const sentiment = data.valuesToSave[`analysis_${i}_sentiment`];
+        const score = data.valuesToSave[`analysis_${i}_score`];
+
+        expect(["positive", "neutral", "negative"]).toContain(sentiment);
+        expect(typeof score).toBe("number");
+        expect(score).toBeGreaterThanOrEqual(0);
+        expect(score).toBeLessThanOrEqual(1);
+
+        console.log(`   Analysis ${i}: ${sentiment} (score: ${score})`);
+      }
+    });
+  });
+
+  describeOpenAI("OpenAI with Parameters", () => {
+    test("should work with custom parameters", async () => {
+      class OpenAIParameterTestAgent extends Agent {
+        async handle(context: Context): Promise<AgentResponse> {
+          if (context.messages.length === 0) {
+            return { type: "continue", message: "Send me a message" };
+          }
+
+          const response = await context.llm.generateContent(
+            context.messages,
+            "You are a precise assistant. Answer briefly."
+          );
+
+          context.storeValue("used_custom_params", true);
+          return { type: "continue", message: response };
+        }
+      }
+
+      const agent = new OpenAIParameterTestAgent({
+        llmConfig: {
+          provider: "openai",
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: "gpt-5-mini",
+        },
+      });
+
+      const requestData = {
+        metadata: {
+          requestId: "openai-params-test-1",
+          chatbotId: "e2e-test-bot",
+          conversationId: "openai-params-conv",
+        },
+        messages: [
+          {
+            author: "User" as const,
+            content: "What is TypeScript?",
+            timestamp: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+
+      // biome-ignore lint/suspicious/noExplicitAny: any is allowed in tests
+      const data = (await callAgent(agent, requestData)) as any;
+
+      expect(data.command.type).toBe("send_message");
+      expect(data.valuesToSave.used_custom_params).toBe(true);
+
+      const message = data.command.payload.message;
+      expect(typeof message).toBe("string");
+      expect(message.length).toBeGreaterThan(0);
+
+      console.log(` OpenAI response with custom params: ${message}`);
+    });
+
+    test("should generate multiple candidates with OpenAI", async () => {
+      class OpenAIMultiCandidateAgent extends Agent {
+        async handle(context: Context): Promise<AgentResponse> {
+          if (context.messages.length === 0) {
+            return { type: "continue", message: "Send me a message" };
+          }
+
+          const responses = await context.llm.generateContentWithCandidates(
+            context.messages,
+            2,
+            "Answer with exactly one word."
+          );
+
+          context.storeValue("candidate_count", responses.length);
+          context.storeValue("candidate_1", responses[0]);
+          context.storeValue("candidate_2", responses[1]);
+
+          return {
+            type: "continue",
+            message: `Candidates: ${responses[0]}, ${responses[1]}`,
+          };
+        }
+      }
+
+      const agent = new OpenAIMultiCandidateAgent({
+        llmConfig: {
+          provider: "openai",
+          apiKey: process.env.OPENAI_API_KEY!,
+          model: "gpt-5-mini",
+        },
+      });
+
+      const requestData = {
+        metadata: {
+          requestId: "openai-multi-test-1",
+          chatbotId: "e2e-test-bot",
+          conversationId: "openai-multi-conv",
+        },
+        messages: [
+          {
+            author: "User" as const,
+            content: "What color is the sky?",
+            timestamp: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+
+      // biome-ignore lint/suspicious/noExplicitAny: any is allowed in tests
+      const data = (await callAgent(agent, requestData)) as any;
+
+      expect(data.command.type).toBe("send_message");
+      expect(data.valuesToSave.candidate_count).toBe(2);
+      expect(typeof data.valuesToSave.candidate_1).toBe("string");
+      expect(typeof data.valuesToSave.candidate_2).toBe("string");
+
+      console.log(`   OpenAI Candidate 1: ${data.valuesToSave.candidate_1}`);
+      console.log(`   OpenAI Candidate 2: ${data.valuesToSave.candidate_2}`);
+    });
   });
 });
