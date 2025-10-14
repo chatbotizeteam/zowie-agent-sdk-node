@@ -609,6 +609,110 @@ async handle(context: Context): Promise<AgentResponse> {
 
 For cross-provider compatibility, use `.nullable()` for optional fields. Refer to the [Google Gemini](https://ai.google.dev/gemini-api/docs/structured-output) and [OpenAI](https://platform.openai.com/docs/guides/structured-outputs) documentation for provider-specific details.
 
+#### Advanced: Per-Request LLM Parameters
+
+All LLM generation methods accept an optional `parameters` object that's passed directly to the underlying provider. This allows you to customize behavior per-request (temperature, max tokens, thinking budget, reasoning effort, etc.).
+
+**Important**: Parameter names and structures vary by provider. Refer to the official documentation:
+
+- **OpenAI**: [ChatCompletionCreateParams](https://platform.openai.com/docs/api-reference/chat/create)
+- **Google Gemini**: [GenerateContentConfig](https://ai.google.dev/api/generate-content)
+
+**Examples:**
+
+OpenAI with custom parameters:
+
+```typescript
+const response = await context.llm.generateContent(
+  context.messages,
+  "You are a helpful assistant",
+  true, // includePersona
+  true, // includeContext
+  {
+    temperature: 0.9,
+    max_completion_tokens: 1000,
+    reasoning_effort: "high", // For o-series and GPT-5 reasoning models
+  }
+);
+```
+
+Google Gemini with custom parameters:
+
+```typescript
+const response = await context.llm.generateContent(
+  context.messages,
+  "You are a creative assistant",
+  true, // includePersona
+  true, // includeContext
+  {
+    temperature: 1.5,
+    thinkingConfig: { thinkingBudget: 5000 },
+  }
+);
+```
+
+#### Multi-Candidate Generation
+
+Generate multiple response candidates in a single API call. This is useful for:
+
+- A/B testing different responses
+- Generating diverse creative content
+- Selecting the best response from multiple options
+
+**Text generation with multiple candidates:**
+
+```typescript
+// Generate 3 different responses
+const candidates = await context.llm.generateContentWithCandidates(
+  context.messages,
+  3, // number of candidates
+  "You are a creative assistant"
+);
+
+// candidates is string[] with 3 items
+console.log(`Generated ${candidates.length} responses`);
+for (const candidate of candidates) {
+  console.log(`- ${candidate}`);
+}
+```
+
+**Structured output with multiple candidates:**
+
+```typescript
+import { z } from "zod";
+
+const SentimentSchema = z.object({
+  sentiment: z.enum(["positive", "neutral", "negative"]),
+  confidence: z.number().min(0).max(1),
+});
+
+// Generate 3 different sentiment analyses
+const analyses = await context.llm.generateStructuredContentWithCandidates(
+  context.messages,
+  3,
+  SentimentSchema,
+  "Analyze the sentiment of this message"
+);
+
+// analyses is T[] with 3 validated items
+for (const analysis of analyses) {
+  console.log(`${analysis.sentiment} (${analysis.confidence})`);
+}
+```
+
+**With custom parameters:**
+
+```typescript
+const responses = await context.llm.generateContentWithCandidates(
+  context.messages,
+  3,
+  "Generate creative product descriptions",
+  undefined,
+  undefined,
+  { temperature: 1.2 } // Higher temperature for more diversity
+);
+```
+
 ### HTTP Client
 
 The `context.http` client provides standard HTTP methods (`get`, `post`, `put`, etc.) with automatic event tracking for observability in Supervisor.
