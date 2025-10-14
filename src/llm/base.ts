@@ -39,7 +39,8 @@ export abstract class BaseLLMProvider {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events?: Event[]
+    events?: Event[],
+    parameters?: Record<string, unknown>
   ): Promise<string>;
 
   /**
@@ -53,8 +54,40 @@ export abstract class BaseLLMProvider {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events?: Event[]
+    events?: Event[],
+    parameters?: Record<string, unknown>
   ): Promise<T>;
+
+  /**
+   * Generate multiple content candidates using the LLM
+   */
+  abstract generateContentWithCandidates(
+    messages: Message[],
+    candidateCount: number,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events?: Event[],
+    parameters?: Record<string, unknown>
+  ): Promise<string[]>;
+
+  /**
+   * Generate multiple structured content candidates using the LLM with schema validation
+   */
+  abstract generateStructuredContentWithCandidates<T>(
+    messages: Message[],
+    candidateCount: number,
+    schema: z.ZodSchema<T>,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events?: Event[],
+    parameters?: Record<string, unknown>
+  ): Promise<T[]>;
 
   /**
    * Build system instruction combining persona, instructions, and context
@@ -119,7 +152,8 @@ export abstract class BaseLLMProvider {
     systemInstruction: string,
     response: string,
     durationMs: number,
-    responseSchema?: unknown
+    responseSchema?: unknown,
+    parameters?: Record<string, unknown>
   ): LLMCallEvent {
     const promptData: Record<string, unknown> = {
       messages,
@@ -129,6 +163,11 @@ export abstract class BaseLLMProvider {
     if (responseSchema) {
       // biome-ignore lint/complexity/useLiteralKeys: Required by TypeScript noPropertyAccessFromIndexSignature
       promptData["response_schema"] = responseSchema;
+    }
+
+    if (parameters && Object.keys(parameters).length > 0) {
+      // biome-ignore lint/complexity/useLiteralKeys: Required by TypeScript noPropertyAccessFromIndexSignature
+      promptData["parameters"] = parameters;
     }
 
     return {
@@ -150,7 +189,8 @@ export abstract class BaseLLMProvider {
     messages: Message[],
     systemInstruction: string,
     events: Event[],
-    responseSchema?: unknown
+    responseSchema?: unknown,
+    parameters?: Record<string, unknown>
   ): Promise<T> {
     this.logger.debug(
       `Making ${this.constructor.name.replace("Provider", "")} LLM request with model ${this.model}`
@@ -168,7 +208,14 @@ export abstract class BaseLLMProvider {
 
       const responseText = typeof result === "string" ? result : JSON.stringify(result);
       events.push(
-        this.createLLMCallEvent(messages, systemInstruction, responseText, duration, responseSchema)
+        this.createLLMCallEvent(
+          messages,
+          systemInstruction,
+          responseText,
+          duration,
+          responseSchema,
+          parameters
+        )
       );
 
       return result;
@@ -187,7 +234,8 @@ export abstract class BaseLLMProvider {
           systemInstruction,
           `Error: ${errorMessage}`,
           duration,
-          responseSchema
+          responseSchema,
+          parameters
         )
       );
       throw error;
@@ -250,7 +298,8 @@ export class LLM {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events: Event[] = []
+    events: Event[] = [],
+    parameters?: Record<string, unknown>
   ): Promise<string> {
     const provider = await this.getProvider();
     return provider.generateContent(
@@ -260,7 +309,8 @@ export class LLM {
       includeContext,
       persona,
       context,
-      events
+      events,
+      parameters
     );
   }
 
@@ -272,7 +322,8 @@ export class LLM {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events: Event[] = []
+    events: Event[] = [],
+    parameters?: Record<string, unknown>
   ): Promise<T> {
     const provider = await this.getProvider();
     return provider.generateStructuredContent(
@@ -283,7 +334,60 @@ export class LLM {
       includeContext,
       persona,
       context,
-      events
+      events,
+      parameters
+    );
+  }
+
+  async generateContentWithCandidates(
+    messages: Message[],
+    candidateCount: number,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events: Event[] = [],
+    parameters?: Record<string, unknown>
+  ): Promise<string[]> {
+    const provider = await this.getProvider();
+    return provider.generateContentWithCandidates(
+      messages,
+      candidateCount,
+      systemInstruction,
+      includePersona,
+      includeContext,
+      persona,
+      context,
+      events,
+      parameters
+    );
+  }
+
+  async generateStructuredContentWithCandidates<T>(
+    messages: Message[],
+    candidateCount: number,
+    schema: z.ZodSchema<T>,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events: Event[] = [],
+    parameters?: Record<string, unknown>
+  ): Promise<T[]> {
+    const provider = await this.getProvider();
+    return provider.generateStructuredContentWithCandidates(
+      messages,
+      candidateCount,
+      schema,
+      systemInstruction,
+      includePersona,
+      includeContext,
+      persona,
+      context,
+      events,
+      parameters
     );
   }
 }

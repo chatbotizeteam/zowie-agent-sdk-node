@@ -4,6 +4,9 @@
  * A TypeScript framework for building external agents that integrate with Zowie Decision Engine.
  */
 
+// LLM provider types for type-safe parameters
+export type { GenerateContentConfig } from "@google/genai";
+export type { OpenAI } from "openai";
 // Main classes
 export { Agent, type AgentOptions } from "./agent.js";
 export { AuthError, AuthValidator } from "./auth.js";

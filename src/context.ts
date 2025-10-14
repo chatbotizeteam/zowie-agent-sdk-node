@@ -63,7 +63,8 @@ export class ContextualLLM {
     messages: Message[],
     systemInstruction?: string,
     includePersona?: boolean,
-    includeContext?: boolean
+    includeContext?: boolean,
+    parameters?: Record<string, unknown>
   ): Promise<string> {
     return this.baseLLM.generateContent(
       messages,
@@ -72,7 +73,8 @@ export class ContextualLLM {
       includeContext,
       this.persona,
       this.context,
-      this.events
+      this.events,
+      parameters
     );
   }
 
@@ -81,7 +83,8 @@ export class ContextualLLM {
     schema: z.ZodSchema<T>,
     systemInstruction?: string,
     includePersona?: boolean,
-    includeContext?: boolean
+    includeContext?: boolean,
+    parameters?: Record<string, unknown>
   ): Promise<T> {
     return this.baseLLM.generateStructuredContent(
       messages,
@@ -91,7 +94,52 @@ export class ContextualLLM {
       includeContext,
       this.persona,
       this.context,
-      this.events
+      this.events,
+      parameters
+    );
+  }
+
+  async generateContentWithCandidates(
+    messages: Message[],
+    candidateCount: number,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    parameters?: Record<string, unknown>
+  ): Promise<string[]> {
+    return this.baseLLM.generateContentWithCandidates(
+      messages,
+      candidateCount,
+      systemInstruction,
+      includePersona,
+      includeContext,
+      this.persona,
+      this.context,
+      this.events,
+      parameters
+    );
+  }
+
+  async generateStructuredContentWithCandidates<T>(
+    messages: Message[],
+    candidateCount: number,
+    schema: z.ZodSchema<T>,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    parameters?: Record<string, unknown>
+  ): Promise<T[]> {
+    return this.baseLLM.generateStructuredContentWithCandidates(
+      messages,
+      candidateCount,
+      schema,
+      systemInstruction,
+      includePersona,
+      includeContext,
+      this.persona,
+      this.context,
+      this.events,
+      parameters
     );
   }
 }

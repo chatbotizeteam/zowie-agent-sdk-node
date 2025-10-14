@@ -2,6 +2,7 @@
  * OpenAI LLM provider implementation
  */
 
+import type OpenAI_NS from "openai";
 import { OpenAI } from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 // biome-ignore lint/style/useImportType: z is used at runtime for zodResponseFormat
@@ -43,7 +44,10 @@ export class OpenAIProvider extends BaseLLMProvider {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events: Event[] = []
+    events: Event[] = [],
+    parameters?: Partial<
+      Omit<OpenAI_NS.Chat.ChatCompletionCreateParamsNonStreaming, "model" | "messages">
+    >
   ): Promise<string> {
     const openai = this.getOpenAI();
 
@@ -65,18 +69,29 @@ export class OpenAIProvider extends BaseLLMProvider {
           ...(this.reasoningEffort && {
             reasoning_effort: this.reasoningEffort,
           }),
+          ...parameters,
         });
 
-        const content = completion.choices[0]?.message?.content;
+        const message = completion.choices[0]?.message;
+        const content = message?.content;
+
         if (!content) {
-          throw new Error("No content received from OpenAI");
+          // Check for refusal (common in reasoning models)
+          if (message?.refusal) {
+            throw new Error(`OpenAI refused to respond: ${message.refusal}`);
+          }
+          throw new Error(
+            `No content received from OpenAI. Response: ${JSON.stringify(completion.choices[0])}`
+          );
         }
 
         return content;
       },
       messages,
       systemInstructionText,
-      events
+      events,
+      undefined,
+      parameters
     );
   }
 
@@ -88,7 +103,13 @@ export class OpenAIProvider extends BaseLLMProvider {
     includeContext?: boolean,
     persona?: Persona,
     context?: string,
-    events: Event[] = []
+    events: Event[] = [],
+    parameters?: Partial<
+      Omit<
+        OpenAI_NS.Chat.ChatCompletionCreateParamsNonStreaming,
+        "model" | "messages" | "response_format"
+      >
+    >
   ): Promise<T> {
     const openai = this.getOpenAI();
 
@@ -111,6 +132,7 @@ export class OpenAIProvider extends BaseLLMProvider {
           ...(this.reasoningEffort && {
             reasoning_effort: this.reasoningEffort,
           }),
+          ...parameters,
         });
 
         const message = completion.choices[0]?.message;
@@ -123,7 +145,135 @@ export class OpenAIProvider extends BaseLLMProvider {
       messages,
       systemInstructionText,
       events,
-      schema
+      schema,
+      parameters
+    );
+  }
+
+  async generateContentWithCandidates(
+    messages: Message[],
+    candidateCount: number,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events: Event[] = [],
+    parameters?: Partial<
+      Omit<OpenAI_NS.Chat.ChatCompletionCreateParamsNonStreaming, "model" | "messages" | "n">
+    >
+  ): Promise<string[]> {
+    const openai = this.getOpenAI();
+
+    const systemInstructionText = this.buildSystemInstruction(
+      systemInstruction,
+      includePersona,
+      includeContext,
+      persona,
+      context
+    );
+
+    const openaiMessages = this.prepareMessages(messages, systemInstructionText);
+
+    return this.withTiming(
+      async () => {
+        const completion = await openai.chat.completions.create({
+          model: this.model,
+          messages: openaiMessages,
+          n: candidateCount,
+          ...(this.reasoningEffort && {
+            reasoning_effort: this.reasoningEffort,
+          }),
+          ...parameters,
+        });
+
+        const results: string[] = [];
+        for (const choice of completion.choices) {
+          const content = choice.message?.content;
+          if (content) {
+            results.push(content);
+          } else if (choice.message?.refusal) {
+            this.logger.warn(`Candidate refused: ${choice.message.refusal}`);
+          }
+        }
+
+        if (results.length === 0) {
+          throw new Error(
+            `No content received from OpenAI. Choices: ${JSON.stringify(completion.choices)}`
+          );
+        }
+
+        return results;
+      },
+      messages,
+      systemInstructionText,
+      events,
+      undefined,
+      { ...parameters, n: candidateCount }
+    );
+  }
+
+  async generateStructuredContentWithCandidates<T>(
+    messages: Message[],
+    candidateCount: number,
+    schema: z.ZodSchema<T>,
+    systemInstruction?: string,
+    includePersona?: boolean,
+    includeContext?: boolean,
+    persona?: Persona,
+    context?: string,
+    events: Event[] = [],
+    parameters?: Partial<
+      Omit<
+        OpenAI_NS.Chat.ChatCompletionCreateParamsNonStreaming,
+        "model" | "messages" | "response_format" | "n"
+      >
+    >
+  ): Promise<T[]> {
+    const openai = this.getOpenAI();
+
+    const systemInstructionText = this.buildSystemInstruction(
+      systemInstruction,
+      includePersona,
+      includeContext,
+      persona,
+      context
+    );
+
+    const openaiMessages = this.prepareMessages(messages, systemInstructionText);
+
+    return this.withTiming(
+      async () => {
+        const completion = await openai.chat.completions.parse({
+          model: this.model,
+          messages: openaiMessages,
+          response_format: zodResponseFormat(schema, "response"),
+          n: candidateCount,
+          ...(this.reasoningEffort && {
+            reasoning_effort: this.reasoningEffort,
+          }),
+          ...parameters,
+        });
+
+        const results: T[] = [];
+        for (const choice of completion.choices) {
+          const parsed = choice.message?.parsed;
+          if (parsed) {
+            results.push(parsed);
+          }
+        }
+
+        if (results.length === 0) {
+          throw new Error("No parsed content received from OpenAI");
+        }
+
+        return results;
+      },
+      messages,
+      systemInstructionText,
+      events,
+      schema,
+      { ...parameters, n: candidateCount }
     );
   }
 
