@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-11-20
+
+### Added
+
+- **Retry Logic for LLM Providers** - Implemented and verified exponential backoff retry logic for both Google GenAI and OpenAI providers
+  - Google: Custom retry implementation handling retryable errors (429, 5xx) with exponential backoff
+  - OpenAI: Configured to use 3 retries (matching Google) via SDK's built-in retry mechanism
+  - Includes comprehensive test suite with verification of backoff behavior
+
+
 ## [0.2.0] - 2025-01-14
 
 ### Added

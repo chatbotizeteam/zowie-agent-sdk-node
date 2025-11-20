@@ -256,6 +256,17 @@ const llmConfig: OpenAIProviderConfig = {
   - `"medium"`: Balanced reasoning tokens (default when not specified)
   - `"high"`: More reasoning tokens (slower, more thorough)
 
+#### Reliability & Retries
+
+Both providers are configured to automatically retry failed requests to handle transient network issues or rate limits.
+
+- **Retries**: 3 attempts (initial request + 3 retries)
+- **Backoff**: Exponential backoff with jitter
+- **Retryable Errors**:
+  - Rate limits (429)
+  - Server errors (5xx)
+  - Connection timeouts
+
 ### Authentication Configuration
 
 Secure your agent's endpoint using an authentication strategy that matches your Zowie External Agent Block configuration.
