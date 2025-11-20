@@ -3,7 +3,7 @@
  */
 
 import type { GenerateContentConfig } from "@google/genai";
-import { GoogleGenAI } from "@google/genai";
+import { ApiError, GoogleGenAI } from "@google/genai";
 import type { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { GoogleProviderConfig } from "../domain.js";
@@ -36,6 +36,46 @@ export class GoogleProvider extends BaseLLMProvider {
     return this.genAI;
   }
 
+  private async retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    maxRetries = 3,
+    baseDelay = 1000
+  ): Promise<T> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+
+        if (attempt < maxRetries && this.isRetryableError(error)) {
+          const delay = baseDelay * 2 ** attempt + Math.random() * 500;
+          this.logger.warn(
+            `Google API request failed (attempt ${attempt + 1}/${maxRetries + 1}). Retrying in ${Math.round(delay)}ms... Error: ${error}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  private isRetryableError(error: unknown): boolean {
+    if (error instanceof ApiError) {
+      // Retry on:
+      // - 429: Too Many Requests (rate limiting)
+      // - >= 500: Server errors (transient issues)
+      return error.status === 429 || error.status >= 500;
+    }
+
+    return false;
+  }
+
   async generateContent(
     messages: Message[],
     systemInstruction?: string,
@@ -60,21 +100,23 @@ export class GoogleProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const response = await genAI.models.generateContent({
-          model: this.model,
-          contents: chatHistory,
-          config: {
-            ...(systemInstructionText && {
-              systemInstruction: systemInstructionText,
-            }),
-            ...(this.thinkingBudget !== undefined && {
-              thinkingConfig: {
-                thinkingBudget: this.thinkingBudget,
-              },
-            }),
-            ...parameters,
-          },
-        });
+        const response = await this.retryWithBackoff(() =>
+          genAI.models.generateContent({
+            model: this.model,
+            contents: chatHistory,
+            config: {
+              ...(systemInstructionText && {
+                systemInstruction: systemInstructionText,
+              }),
+              ...(this.thinkingBudget !== undefined && {
+                thinkingConfig: {
+                  thinkingBudget: this.thinkingBudget,
+                },
+              }),
+              ...parameters,
+            },
+          })
+        );
         return response.text || "";
       },
       messages,
@@ -111,23 +153,25 @@ export class GoogleProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const response = await genAI.models.generateContent({
-          model: this.model,
-          contents: chatHistory,
-          config: {
-            ...(systemInstructionText && {
-              systemInstruction: systemInstructionText,
-            }),
-            responseMimeType: "application/json",
-            responseSchema,
-            ...(this.thinkingBudget !== undefined && {
-              thinkingConfig: {
-                thinkingBudget: this.thinkingBudget,
-              },
-            }),
-            ...parameters,
-          },
-        });
+        const response = await this.retryWithBackoff(() =>
+          genAI.models.generateContent({
+            model: this.model,
+            contents: chatHistory,
+            config: {
+              ...(systemInstructionText && {
+                systemInstruction: systemInstructionText,
+              }),
+              responseMimeType: "application/json",
+              responseSchema,
+              ...(this.thinkingBudget !== undefined && {
+                thinkingConfig: {
+                  thinkingBudget: this.thinkingBudget,
+                },
+              }),
+              ...parameters,
+            },
+          })
+        );
 
         const content = response.text || "";
 
@@ -171,22 +215,24 @@ export class GoogleProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const response = await genAI.models.generateContent({
-          model: this.model,
-          contents: chatHistory,
-          config: {
-            ...(systemInstructionText && {
-              systemInstruction: systemInstructionText,
-            }),
-            candidateCount,
-            ...(this.thinkingBudget !== undefined && {
-              thinkingConfig: {
-                thinkingBudget: this.thinkingBudget,
-              },
-            }),
-            ...parameters,
-          },
-        });
+        const response = await this.retryWithBackoff(() =>
+          genAI.models.generateContent({
+            model: this.model,
+            contents: chatHistory,
+            config: {
+              ...(systemInstructionText && {
+                systemInstruction: systemInstructionText,
+              }),
+              candidateCount,
+              ...(this.thinkingBudget !== undefined && {
+                thinkingConfig: {
+                  thinkingBudget: this.thinkingBudget,
+                },
+              }),
+              ...parameters,
+            },
+          })
+        );
 
         const results: string[] = [];
         if (response.candidates) {
@@ -239,24 +285,26 @@ export class GoogleProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const response = await genAI.models.generateContent({
-          model: this.model,
-          contents: chatHistory,
-          config: {
-            ...(systemInstructionText && {
-              systemInstruction: systemInstructionText,
-            }),
-            responseMimeType: "application/json",
-            responseSchema,
-            candidateCount,
-            ...(this.thinkingBudget !== undefined && {
-              thinkingConfig: {
-                thinkingBudget: this.thinkingBudget,
-              },
-            }),
-            ...parameters,
-          },
-        });
+        const response = await this.retryWithBackoff(() =>
+          genAI.models.generateContent({
+            model: this.model,
+            contents: chatHistory,
+            config: {
+              ...(systemInstructionText && {
+                systemInstruction: systemInstructionText,
+              }),
+              responseMimeType: "application/json",
+              responseSchema,
+              candidateCount,
+              ...(this.thinkingBudget !== undefined && {
+                thinkingConfig: {
+                  thinkingBudget: this.thinkingBudget,
+                },
+              }),
+              ...parameters,
+            },
+          })
+        );
 
         const results: T[] = [];
         if (response.candidates) {
