@@ -29,6 +29,7 @@ export class OpenAIProvider extends BaseLLMProvider {
       try {
         this.openai = new OpenAI({
           apiKey: this.apiKey,
+          maxRetries: 3,
         });
       } catch (_error) {
         throw new Error("Failed to initialize OpenAI provider. Please check your API key.");

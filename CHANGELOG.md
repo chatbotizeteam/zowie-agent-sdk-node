@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Google Provider Retry Logic** - Implemented and verified exponential backoff retry logic for Google GenAI provider
-  - Handles retryable errors (429, 5xx) with correct backoff delays
+- **Retry Logic for LLM Providers** - Implemented and verified exponential backoff retry logic for both Google GenAI and OpenAI providers
+  - Google: Custom retry implementation handling retryable errors (429, 5xx) with exponential backoff
+  - OpenAI: Configured to use 3 retries (matching Google) via SDK's built-in retry mechanism
   - Includes comprehensive test suite with verification of backoff behavior
 
 
