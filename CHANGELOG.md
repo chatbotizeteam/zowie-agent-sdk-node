@@ -12,7 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Path-based routing** - Agent now handles POST requests on all paths, not just `/`
   - New `context.path` property exposes the HTTP request path (e.g., `"/"`, `"/v2/handle"`)
   - Enables implementing custom routing logic within the agent's `handle()` method
-  - Useful for versioned APIs, multi-tenant deployments, or path-based feature flags
+
+### Changed
+
+- **Reduced public API surface** - Removed internal types and utilities from public exports
+  - Removed internal classes: `AuthError`, `AuthValidator`, `HTTPClient`, `LLM`, `BaseLLMProvider`, `ContextualHTTPClient`, `ContextualLLM`
+  - Removed factory helpers: `createAPIKeyAuth`, `createBasicAuth`, `createBearerTokenAuth` (use object literals instead)
+  - Removed internal utilities: `getLogger`, `getTimeMs`, `isAbortError`, `isTimeoutError`
+  - Removed all Zod schemas (`*Schema`) - these are internal parsing implementation details
+  - Removed `parseIncomingRequest`, `serializeExternalAgentResponse` - internal protocol handling
+  - Removed `GenerateContentConfig`, `OpenAI` type re-exports - import directly from providers if needed
+  - Removed unused `VERSION` constant
+  - Removed event types (`Event`, `LLMCallEvent`, `APICallEvent`, etc.) - internal protocol types
+
+### Fixed
+
+- Removed dead code: `serializeExternalAgentResponse` was never used internally
 
 ## [0.2.1] - 2025-11-20
 
@@ -22,7 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Google: Custom retry implementation handling retryable errors (429, 5xx) with exponential backoff
   - OpenAI: Configured to use 3 retries (matching Google) via SDK's built-in retry mechanism
   - Includes comprehensive test suite with verification of backoff behavior
-
 
 ## [0.2.0] - 2025-01-14
 
