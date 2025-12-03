@@ -184,8 +184,8 @@ export abstract class Agent {
       });
     });
 
-    // Main agent endpoint with authentication
-    this.app.post("/", this.authValidator.middleware(), async (req: Request, res: Response) => {
+    // Main agent endpoint with authentication - handles all paths
+    this.app.post("/{*path}", this.authValidator.middleware(), async (req: Request, res: Response) => {
       const requestId = "unknown";
       const startTime = Date.now();
       try {
@@ -193,7 +193,7 @@ export abstract class Agent {
         const request: IncomingRequest = parseIncomingRequest(req.body);
 
         const actualRequestId = request.metadata.requestId;
-        this.logger.info("Processing request", { requestId: actualRequestId });
+        this.logger.info("Processing request", { requestId: actualRequestId, path: req.path });
 
         const valueStorage: Record<string, unknown> = {};
         const events: Event[] = [];
@@ -205,6 +205,7 @@ export abstract class Agent {
         const context = new Context(
           request.metadata,
           request.messages,
+          req.path,
           storeValue,
           this.baseLLM,
           this.baseHTTPClient,
@@ -268,11 +269,11 @@ export abstract class Agent {
       }
     });
 
-    // Catch-all for unsupported routes (Express 5 compatible)
+    // Catch-all for unsupported methods (Express 5 compatible)
     this.app.use((req: Request, res: Response) => {
-      res.status(404).json({
-        error: "Not found",
-        message: `Route ${req.method} ${req.path} not found`,
+      res.status(405).json({
+        error: "Method not allowed",
+        message: `Method ${req.method} not supported`,
       });
     });
   }

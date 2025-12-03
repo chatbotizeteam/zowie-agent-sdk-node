@@ -392,6 +392,7 @@ The `Context` object provides access to all request data and pre-configured clie
 
 - `metadata: Metadata`: Request metadata (IDs, timestamps).
 - `messages: Message[]`: Conversation message history.
+- `path: string`: The HTTP request path (e.g., `"/"`, `"/v2/handle"`).
 - `context?: string`: Context string from the Zowie configuration.
 - `persona?: Persona`: Chatbot persona information.
 - `llm: LLM`: LLM client with automatic context injection and event tracking.
@@ -844,11 +845,19 @@ The SDK automatically tracks all `context.http` and `context.llm` calls as event
 
 Your agent server exposes the following HTTP endpoints.
 
-### `POST /`
+### `POST /*` (All Paths)
 
-This is the main endpoint for processing conversation requests from the Zowie Decision Engine.
+The agent handles POST requests on **all paths**. The request path is available via `context.path` in your handler, allowing you to implement path-based routing logic.
 
----
+```typescript
+async handle(context: Context): Promise<AgentResponse> {
+  // Route based on path
+  if (context.path === "/v2/handle") {
+    return this.handleV2(context);
+  }
+  return this.handleDefault(context);
+}
+```
 
 #### Request Body
 

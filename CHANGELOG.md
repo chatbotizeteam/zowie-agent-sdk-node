@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-03
+
+### Added
+
+- **Path-based routing** - Agent now handles POST requests on all paths, not just `/`
+  - New `context.path` property exposes the HTTP request path (e.g., `"/"`, `"/v2/handle"`)
+  - Enables implementing custom routing logic within the agent's `handle()` method
+  - Useful for versioned APIs, multi-tenant deployments, or path-based feature flags
+
 ## [0.2.1] - 2025-11-20
 
 ### Added

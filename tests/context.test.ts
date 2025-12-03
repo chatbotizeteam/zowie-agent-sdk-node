@@ -37,7 +37,7 @@ describe("Context", () => {
       const llm = {} as LLM;
       const http = {} as HTTPClient;
 
-      const context = new Context(mockMetadata, mockMessages, storeValue, llm, http);
+      const context = new Context(mockMetadata, mockMessages, "/", storeValue, llm, http);
 
       expect(context.metadata).toEqual(mockMetadata);
       expect(context.messages).toEqual(mockMessages);
@@ -57,6 +57,7 @@ describe("Context", () => {
       const context = new Context(
         mockMetadata,
         mockMessages,
+        "/",
         storeValue,
         llm,
         http,
@@ -75,7 +76,7 @@ describe("Context", () => {
       const llm = {} as LLM;
       const http = {} as HTTPClient;
 
-      const context = new Context(mockMetadata, mockMessages, storeValue, llm, http);
+      const context = new Context(mockMetadata, mockMessages, "/", storeValue, llm, http);
 
       expect(context.llm).toBeDefined();
       expect(context.http).toBeDefined();
@@ -90,6 +91,7 @@ describe("Context", () => {
       const context = new Context(
         mockMetadata,
         mockMessages,
+        "/",
         storeValue,
         {} as LLM,
         {} as HTTPClient
@@ -104,6 +106,7 @@ describe("Context", () => {
       const context = new Context(
         mockMetadata,
         mockMessages,
+        "/",
         storeValue,
         {} as LLM,
         {} as HTTPClient
@@ -135,6 +138,7 @@ describe("Context", () => {
       const context = new Context(
         mockMetadata,
         mockMessages,
+        "/",
         storeValue,
         llm,
         http,
