@@ -184,95 +184,100 @@ export abstract class Agent {
       });
     });
 
-    // Main agent endpoint with authentication
-    this.app.post("/", this.authValidator.middleware(), async (req: Request, res: Response) => {
-      const requestId = "unknown";
-      const startTime = Date.now();
-      try {
-        // Validate the complete incoming request
-        const request: IncomingRequest = parseIncomingRequest(req.body);
+    // Main agent endpoint with authentication - handles all paths
+    this.app.post(
+      "/{*path}",
+      this.authValidator.middleware(),
+      async (req: Request, res: Response) => {
+        const requestId = "unknown";
+        const startTime = Date.now();
+        try {
+          // Validate the complete incoming request
+          const request: IncomingRequest = parseIncomingRequest(req.body);
 
-        const actualRequestId = request.metadata.requestId;
-        this.logger.info("Processing request", { requestId: actualRequestId });
+          const actualRequestId = request.metadata.requestId;
+          this.logger.info("Processing request", { requestId: actualRequestId, path: req.path });
 
-        const valueStorage: Record<string, unknown> = {};
-        const events: Event[] = [];
+          const valueStorage: Record<string, unknown> = {};
+          const events: Event[] = [];
 
-        const storeValue = (key: string, value: unknown): void => {
-          valueStorage[key] = value;
-        };
+          const storeValue = (key: string, value: unknown): void => {
+            valueStorage[key] = value;
+          };
 
-        const context = new Context(
-          request.metadata,
-          request.messages,
-          storeValue,
-          this.baseLLM,
-          this.baseHTTPClient,
-          request.persona || undefined,
-          request.context || undefined,
-          events
-        );
+          const context = new Context(
+            request.metadata,
+            request.messages,
+            req.path,
+            storeValue,
+            this.baseLLM,
+            this.baseHTTPClient,
+            request.persona || undefined,
+            request.context || undefined,
+            events
+          );
 
-        const result = await this.handle(context);
+          const result = await this.handle(context);
 
-        // Build response directly - TypeScript ensures type safety
-        const response: ExternalAgentResponse = {
-          command:
-            result.type === "continue"
-              ? {
-                  type: "send_message",
-                  payload: { message: result.message },
-                }
-              : {
-                  type: "go_to_next_block",
-                  payload: {
-                    nextBlockReferenceKey: result.nextBlock,
-                    message: result.message,
+          // Build response directly - TypeScript ensures type safety
+          const response: ExternalAgentResponse = {
+            command:
+              result.type === "continue"
+                ? {
+                    type: "send_message",
+                    payload: { message: result.message },
+                  }
+                : {
+                    type: "go_to_next_block",
+                    payload: {
+                      nextBlockReferenceKey: result.nextBlock,
+                      message: result.message,
+                    },
                   },
-                },
-          valuesToSave: Object.keys(valueStorage).length > 0 ? valueStorage : undefined,
-          events: events.length > 0 ? events : undefined,
-        };
+            valuesToSave: Object.keys(valueStorage).length > 0 ? valueStorage : undefined,
+            events: events.length > 0 ? events : undefined,
+          };
 
-        this.logger.info("Request processed successfully", {
-          requestId: actualRequestId,
-          durationMs: Date.now() - startTime,
-        });
+          this.logger.info("Request processed successfully", {
+            requestId: actualRequestId,
+            durationMs: Date.now() - startTime,
+          });
 
-        res.json(response);
-      } catch (error) {
-        const durationMs = Date.now() - startTime;
-        // Check if it's a validation error (Zod error)
-        if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
-          this.logger.warn("Invalid request format", {
-            requestId,
-            durationMs,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          res.status(400).json({
-            error: "Bad request",
-            message: "Invalid request format",
-          });
-        } else {
-          this.logger.error("Error processing request", {
-            requestId,
-            durationMs,
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-          });
-          res.status(500).json({
-            error: "Internal server error",
-            message: error instanceof Error ? error.message : String(error),
-          });
+          res.json(response);
+        } catch (error) {
+          const durationMs = Date.now() - startTime;
+          // Check if it's a validation error (Zod error)
+          if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
+            this.logger.warn("Invalid request format", {
+              requestId,
+              durationMs,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            res.status(400).json({
+              error: "Bad request",
+              message: "Invalid request format",
+            });
+          } else {
+            this.logger.error("Error processing request", {
+              requestId,
+              durationMs,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+            });
+            res.status(500).json({
+              error: "Internal server error",
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
       }
-    });
+    );
 
-    // Catch-all for unsupported routes (Express 5 compatible)
+    // Catch-all for unsupported methods (Express 5 compatible)
     this.app.use((req: Request, res: Response) => {
-      res.status(404).json({
-        error: "Not found",
-        message: `Route ${req.method} ${req.path} not found`,
+      res.status(405).json({
+        error: "Method not allowed",
+        message: `Method ${req.method} not supported`,
       });
     });
   }

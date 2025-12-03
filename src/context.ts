@@ -14,6 +14,7 @@ import type { Event, Message, Metadata, Persona } from "./protocol.js";
 export class Context {
   public readonly metadata: Metadata;
   public readonly messages: Message[];
+  public readonly path: string;
   public readonly persona?: Persona | undefined;
   public readonly context?: string | undefined;
   public readonly events: Event[];
@@ -27,6 +28,7 @@ export class Context {
   constructor(
     metadata: Metadata,
     messages: Message[],
+    path: string,
     storeValue: (key: string, value: unknown) => void,
     llm: LLM,
     http: HTTPClient,
@@ -36,6 +38,7 @@ export class Context {
   ) {
     this.metadata = metadata;
     this.messages = messages;
+    this.path = path;
     this.storeValue = storeValue;
     this.baseLLM = llm;
     this.baseHTTP = http;
