@@ -28,7 +28,8 @@ declare global {
 
 import type { Server } from "node:http";
 import { z } from "zod";
-import { Agent, type AgentResponse, type Context, type Event } from "../src/index.js";
+import { Agent, type AgentResponse, type Context } from "../src/index.js";
+import type { Event } from "../src/protocol.js";
 
 const hasApiKeys = Boolean(process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY);
 

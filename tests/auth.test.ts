@@ -4,13 +4,8 @@
 
 import { jest } from "@jest/globals";
 import type { Request, Response } from "express";
-import {
-  AuthError,
-  AuthValidator,
-  createAPIKeyAuth,
-  createBasicAuth,
-  createBearerTokenAuth,
-} from "../src/index.js";
+import { AuthError, AuthValidator } from "../src/auth.js";
+import { createAPIKeyAuth, createBasicAuth, createBearerTokenAuth } from "../src/domain.js";
 
 // Mock Express request/response objects
 const mockRequest = (headers: Record<string, string> = {}): Partial<Request> => ({

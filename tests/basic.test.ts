@@ -2,14 +2,9 @@
  * Basic functionality tests for the SDK
  */
 
-import {
-  Agent,
-  type AgentResponse,
-  type Context,
-  HTTPClient,
-  parseIncomingRequest,
-  serializeExternalAgentResponse,
-} from "../src/index.js";
+import { HTTPClient } from "../src/http.js";
+import { Agent, type AgentResponse, type Context } from "../src/index.js";
+import { parseIncomingRequest, serializeExternalAgentResponse } from "../src/protocol.js";
 
 // Simple test agent
 class TestAgent extends Agent {

@@ -10,7 +10,7 @@ import {
   PersonaSchema,
   parseIncomingRequest,
   serializeExternalAgentResponse,
-} from "../src/index.js";
+} from "../src/protocol.js";
 
 describe("Protocol Validation", () => {
   describe("Metadata Schema", () => {
