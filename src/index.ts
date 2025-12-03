@@ -24,4 +24,4 @@ export type {
 // HTTP client options
 export type { HTTPRequestOptions } from "./http.js";
 // Protocol types (for user code)
-export type { Message, Metadata, Persona } from "./protocol.js";
+export type { ExternalAgentResponse, Message, Metadata, Persona } from "./protocol.js";
