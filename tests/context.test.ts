@@ -171,6 +171,7 @@ describe("Context", () => {
       const context = new Context(
         mockMetadata,
         mockMessages,
+        "/",
         storeValue,
         {} as LLM,
         {} as HTTPClient
