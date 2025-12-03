@@ -4,14 +4,11 @@
  * A TypeScript framework for building external agents that integrate with Zowie Decision Engine.
  */
 
-// LLM provider types for type-safe parameters
-export type { GenerateContentConfig } from "@google/genai";
-export type { OpenAI } from "openai";
-// Main classes
+// Core classes
 export { Agent, type AgentOptions } from "./agent.js";
-export { AuthError, AuthValidator } from "./auth.js";
-export { Context, ContextualHTTPClient, ContextualLLM } from "./context.js";
-// Domain types (internal)
+export { Context } from "./context.js";
+
+// Configuration types
 export type {
   AgentResponse,
   APIKeyAuth,
@@ -24,43 +21,7 @@ export type {
   OpenAIProviderConfig,
   TransferToBlockResponse,
 } from "./domain.js";
-export { createAPIKeyAuth, createBasicAuth, createBearerTokenAuth } from "./domain.js";
-export { HTTPClient, type HTTPRequestOptions } from "./http.js";
-// LLM providers
-export { BaseLLMProvider, LLM } from "./llm/index.js";
-// Logging
-export { getLogger } from "./logger.js";
-// Protocol types (external API)
-export type {
-  APICallEvent,
-  Command,
-  Event,
-  ExternalAgentResponse,
-  GoToNextBlockCommand,
-  IncomingRequest,
-  LLMCallEvent,
-  Message,
-  Metadata,
-  Persona,
-  SendMessageCommand,
-} from "./protocol.js";
-export {
-  APICallEventSchema,
-  CommandSchema,
-  EventSchema,
-  ExternalAgentResponseSchema,
-  GoToNextBlockCommandSchema,
-  IncomingRequestSchema,
-  LLMCallEventSchema,
-  MessageSchema,
-  MetadataSchema,
-  PersonaSchema,
-  parseIncomingRequest,
-  SendMessageCommandSchema,
-  serializeExternalAgentResponse,
-} from "./protocol.js";
-// Utilities
-export { getTimeMs, isAbortError, isTimeoutError } from "./utils.js";
-
-// Package version
-export const VERSION = "0.1.0";
+// HTTP client options
+export type { HTTPRequestOptions } from "./http.js";
+// Protocol types (for user code)
+export type { Message, Metadata, Persona } from "./protocol.js";

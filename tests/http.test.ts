@@ -2,7 +2,8 @@
  * HTTP client tests
  */
 
-import { type Event, HTTPClient } from "../src/index.js";
+import { HTTPClient } from "../src/http.js";
+import type { Event } from "../src/protocol.js";
 
 describe("HTTPClient", () => {
   let httpClient: HTTPClient;
