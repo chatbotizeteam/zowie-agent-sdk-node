@@ -344,6 +344,13 @@ The `Agent` class is the base for all agents. Inherit from this class and implem
 - `logger: winston.Logger`: Logger instance for this agent, automatically configured with the agent's class name (e.g., `zowie_agent.MyAgent`).
 - `app: Express`: The Express application instance exposed for advanced customization and deployment.
 
+#### Agent Methods
+
+- `handle(context: Context): Promise<AgentResponse>`: Abstract method you must implement with your agent logic.
+- `handleRequest(body: unknown, path?: string): Promise<ExternalAgentResponse>`: Process a raw request without Express. Useful for Next.js, Cloudflare Workers, AWS Lambda, etc.
+- `listen(port?: number): Promise<void>`: Start the Express server on the specified port (default: 3000).
+- `close(): Promise<void>`: Gracefully close the HTTP server.
+
 ```typescript
 import {
   Agent,
@@ -385,6 +392,60 @@ const agent = new MyAgent({
 **Note**: The SDK automatically logs request start/end and errors. Use `this.logger` for business logic events, debugging, and monitoring specific to your agent's functionality.
 
 For a complete example of effective logging usage, see the `DocumentVerificationExpertAgent` in `example.ts`, which demonstrates logging for query analysis, scope decisions, and error handling.
+
+#### Using with Serverless Frameworks
+
+The `handleRequest` method allows you to use the SDK with any framework that doesn't support Express middleware, such as Next.js App Router, Cloudflare Workers, or AWS Lambda.
+
+**Next.js App Router Example:**
+
+```typescript
+// lib/agent.ts
+import { Agent, type AgentResponse, type Context } from "@zowieteam/zowie-agent-sdk";
+
+class MyAgent extends Agent {
+  async handle(context: Context): Promise<AgentResponse> {
+    const response = await context.llm.generateContent(
+      context.messages,
+      "You are a helpful assistant"
+    );
+    return { type: "continue", message: response };
+  }
+}
+
+export const agent = new MyAgent({
+  llmConfig: {
+    provider: "google",
+    apiKey: process.env.GOOGLE_API_KEY || "",
+    model: "gemini-2.5-flash",
+  },
+});
+```
+
+```typescript
+// app/api/agent/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { agent } from "@/lib/agent";
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const response = await agent.handleRequest(body, `/${id}`);
+    return NextResponse.json(response);
+  } catch (error: unknown) {
+    if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
+      return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+```
+
+**Note:** When using `handleRequest`, authentication must be handled in your route handler since the SDK's `authConfig` only applies to the Express server.
 
 ### Context Class
 

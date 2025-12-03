@@ -16,7 +16,7 @@ import type { AgentResponse, AuthConfig, LLMConfig } from "./domain.js";
 import { HTTPClient } from "./http.js";
 import { LLM } from "./llm/index.js";
 import { getLogger } from "./logger.js";
-import type { Event, ExternalAgentResponse, IncomingRequest } from "./protocol.js";
+import type { Event, ExternalAgentResponse } from "./protocol.js";
 import { parseIncomingRequest } from "./protocol.js";
 import { getTimeMs } from "./utils.js";
 
@@ -141,6 +141,75 @@ export abstract class Agent {
   abstract handle(context: Context): Promise<AgentResponse>;
 
   /**
+   * Handle a raw request body without Express.
+   * Useful for Next.js App Router, Cloudflare Workers, AWS Lambda, etc.
+   *
+   * @param body - The raw request body (will be validated)
+   * @param path - The request path (default: "/")
+   * @returns Promise resolving to the external agent response
+   *
+   * @example
+   * ```typescript
+   * // Next.js App Router
+   * export async function POST(req: NextRequest) {
+   *   const body = await req.json();
+   *   const response = await agent.handleRequest(body, "/my-path");
+   *   return NextResponse.json(response);
+   * }
+   * ```
+   */
+  async handleRequest(body: unknown, path: string = "/"): Promise<ExternalAgentResponse> {
+    const startTime = Date.now();
+
+    // Validate the incoming request
+    const request = parseIncomingRequest(body);
+    const requestId = request.metadata.requestId;
+
+    this.logger.info("Processing request", { requestId, path });
+
+    const valueStorage: Record<string, unknown> = {};
+    const events: Event[] = [];
+
+    const storeValue = (key: string, value: unknown): void => {
+      valueStorage[key] = value;
+    };
+
+    const context = new Context(
+      request.metadata,
+      request.messages,
+      path,
+      storeValue,
+      this.baseLLM,
+      this.baseHTTPClient,
+      request.persona || undefined,
+      request.context || undefined,
+      events
+    );
+
+    const result = await this.handle(context);
+
+    // Build response
+    const response: ExternalAgentResponse = {
+      command:
+        result.type === "continue"
+          ? { type: "send_message", payload: { message: result.message } }
+          : {
+              type: "go_to_next_block",
+              payload: { nextBlockReferenceKey: result.nextBlock, message: result.message },
+            },
+      valuesToSave: Object.keys(valueStorage).length > 0 ? valueStorage : undefined,
+      events: events.length > 0 ? events : undefined,
+    };
+
+    this.logger.info("Request processed successfully", {
+      requestId,
+      durationMs: Date.now() - startTime,
+    });
+
+    return response;
+  }
+
+  /**
    * Start the agent server on the specified port
    *
    * @param port - Port to listen on (defaults to 3000)
@@ -189,68 +258,13 @@ export abstract class Agent {
       "/{*path}",
       this.authValidator.middleware(),
       async (req: Request, res: Response) => {
-        const requestId = "unknown";
-        const startTime = Date.now();
         try {
-          // Validate the complete incoming request
-          const request: IncomingRequest = parseIncomingRequest(req.body);
-
-          const actualRequestId = request.metadata.requestId;
-          this.logger.info("Processing request", { requestId: actualRequestId, path: req.path });
-
-          const valueStorage: Record<string, unknown> = {};
-          const events: Event[] = [];
-
-          const storeValue = (key: string, value: unknown): void => {
-            valueStorage[key] = value;
-          };
-
-          const context = new Context(
-            request.metadata,
-            request.messages,
-            req.path,
-            storeValue,
-            this.baseLLM,
-            this.baseHTTPClient,
-            request.persona || undefined,
-            request.context || undefined,
-            events
-          );
-
-          const result = await this.handle(context);
-
-          // Build response directly - TypeScript ensures type safety
-          const response: ExternalAgentResponse = {
-            command:
-              result.type === "continue"
-                ? {
-                    type: "send_message",
-                    payload: { message: result.message },
-                  }
-                : {
-                    type: "go_to_next_block",
-                    payload: {
-                      nextBlockReferenceKey: result.nextBlock,
-                      message: result.message,
-                    },
-                  },
-            valuesToSave: Object.keys(valueStorage).length > 0 ? valueStorage : undefined,
-            events: events.length > 0 ? events : undefined,
-          };
-
-          this.logger.info("Request processed successfully", {
-            requestId: actualRequestId,
-            durationMs: Date.now() - startTime,
-          });
-
+          const response = await this.handleRequest(req.body, req.path);
           res.json(response);
         } catch (error) {
-          const durationMs = Date.now() - startTime;
           // Check if it's a validation error (Zod error)
           if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
             this.logger.warn("Invalid request format", {
-              requestId,
-              durationMs,
               error: error instanceof Error ? error.message : String(error),
             });
             res.status(400).json({
@@ -259,8 +273,6 @@ export abstract class Agent {
             });
           } else {
             this.logger.error("Error processing request", {
-              requestId,
-              durationMs,
               error: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
             });
