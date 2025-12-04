@@ -1,6 +1,6 @@
 {
   "name": "@zowieteam/zowie-agent-sdk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Node.js/TypeScript SDK for building external agents that integrate with Zowie Decision Engine",
   "type": "module",
   "main": "dist/index.js",

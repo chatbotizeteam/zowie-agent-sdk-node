@@ -7,9 +7,10 @@
  */
 
 import type { z } from "zod";
+import type { APICallInput, LLMCallInput } from "./domain.js";
 import type { HTTPClient, HTTPRequestOptions } from "./http.js";
 import type { LLM } from "./llm/index.js";
-import type { Event, Message, Metadata, Persona } from "./protocol.js";
+import type { APICallEvent, Event, LLMCallEvent, Message, Metadata, Persona } from "./protocol.js";
 
 export class Context {
   public readonly metadata: Metadata;
@@ -48,6 +49,36 @@ export class Context {
 
     this.llm = new ContextualLLM(this.baseLLM, this.persona, this.context, this.events);
     this.http = new ContextualHTTPClient(this.baseHTTP, this.events);
+  }
+
+  logLLMCall(input: LLMCallInput): void {
+    const event: LLMCallEvent = {
+      type: "llm_call",
+      payload: {
+        prompt: input.prompt,
+        response: input.response,
+        model: input.model,
+        durationInMillis: input.durationInMillis,
+      },
+    };
+    this.events.push(event);
+  }
+
+  logAPICall(input: APICallInput): void {
+    const event: APICallEvent = {
+      type: "api_call",
+      payload: {
+        url: input.url,
+        requestMethod: input.requestMethod,
+        requestHeaders: input.requestHeaders ?? {},
+        requestBody: input.requestBody,
+        responseHeaders: input.responseHeaders ?? {},
+        responseStatusCode: input.responseStatusCode,
+        responseBody: input.responseBody,
+        durationInMillis: input.durationInMillis,
+      },
+    };
+    this.events.push(event);
   }
 }
 

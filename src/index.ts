@@ -11,12 +11,14 @@ export { Context } from "./context.js";
 // Configuration types
 export type {
   AgentResponse,
+  APICallInput,
   APIKeyAuth,
   AuthConfig,
   BasicAuth,
   BearerTokenAuth,
   ContinueConversationResponse,
   GoogleProviderConfig,
+  LLMCallInput,
   LLMConfig,
   OpenAIProviderConfig,
   TransferToBlockResponse,
