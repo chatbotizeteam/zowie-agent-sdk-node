@@ -900,6 +900,80 @@ The SDK automatically tracks all `context.http` and `context.llm` calls as event
 }
 ```
 
+### Manual Event Logging
+
+When using external LLM or HTTP clients instead of `context.llm` or `context.http`, you can manually log events to maintain full observability in Supervisor.
+
+#### Logging External LLM Calls
+
+```typescript
+import type { LLMCallInput } from "@zowieteam/zowie-agent-sdk";
+
+async handle(context: Context): Promise<AgentResponse> {
+  // Using your own OpenAI client
+  const startTime = Date.now();
+  const completion = await myOpenAIClient.chat.completions.create({
+    model: "gpt-4",
+    messages: [{ role: "user", content: "Hello" }],
+  });
+  const response = completion.choices[0].message.content;
+
+  // Log the event for Supervisor visibility
+  context.logLLMCall({
+    prompt: "Hello",
+    response: response || "",
+    model: "gpt-4",
+    durationInMillis: Date.now() - startTime,
+  });
+
+  return { type: "continue", message: response || "" };
+}
+```
+
+#### Logging External HTTP Calls
+
+```typescript
+import type { APICallInput } from "@zowieteam/zowie-agent-sdk";
+
+async handle(context: Context): Promise<AgentResponse> {
+  // Using axios or another HTTP client
+  const startTime = Date.now();
+  const res = await axios.get("https://api.example.com/data", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  // Log the event for Supervisor visibility
+  context.logAPICall({
+    url: "https://api.example.com/data",
+    requestMethod: "GET",
+    requestHeaders: { Authorization: "Bearer ***" }, // Optionally redact sensitive headers
+    responseStatusCode: res.status,
+    responseBody: JSON.stringify(res.data),
+    durationInMillis: Date.now() - startTime,
+  });
+
+  return { type: "continue", message: "Data fetched" };
+}
+```
+
+Both methods accept objects with the following properties:
+
+**`LLMCallInput`:**
+- `prompt` (string): The input prompt
+- `response` (string): The LLM response
+- `model` (string): Model identifier
+- `durationInMillis` (number): Call duration in milliseconds
+
+**`APICallInput`:**
+- `url` (string): Request URL
+- `requestMethod` (string): HTTP method (GET, POST, etc.)
+- `responseStatusCode` (number): HTTP status code
+- `durationInMillis` (number): Call duration in milliseconds
+- `requestHeaders` (optional): Request headers
+- `requestBody` (optional): Request body as string
+- `responseHeaders` (optional): Response headers
+- `responseBody` (optional): Response body as string
+
 ---
 
 ## API Endpoints

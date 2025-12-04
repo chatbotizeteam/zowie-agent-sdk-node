@@ -57,6 +57,25 @@ export interface BearerTokenAuth {
 
 export type AuthConfig = APIKeyAuth | BasicAuth | BearerTokenAuth;
 
+// Event logging input types
+export interface LLMCallInput {
+  prompt: string;
+  response: string;
+  model: string;
+  durationInMillis: number;
+}
+
+export interface APICallInput {
+  url: string;
+  requestMethod: string;
+  responseStatusCode: number;
+  durationInMillis: number;
+  requestHeaders?: Record<string, string>;
+  requestBody?: string;
+  responseHeaders?: Record<string, string>;
+  responseBody?: string;
+}
+
 // Auth config creation helpers
 export function createAPIKeyAuth(headerName: string, apiKey: string): APIKeyAuth {
   return { type: "api_key", headerName, apiKey };
