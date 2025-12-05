@@ -227,13 +227,35 @@ const llmConfig: GoogleProviderConfig = {
 };
 ```
 
-- **apiKey** (`string`): Your Google AI API key.
+- **apiKey** (`string`): Your Google AI API key (required when `vertexai` is not set).
 - **model** (`string`): The model name to use.
 - **thinkingBudget** (`number`, optional): Controls the reasoning token budget for thinking-capable models (e.g., gemini-2.5-pro).
   - Positive values (e.g., `1024`, `2048`): Set a specific token budget for reasoning
   - `0`: Disable thinking/reasoning
   - `-1`: Enable dynamic thinking budget
   - Minimum budget for gemini-2.5-pro: `128` tokens
+- **vertexai** (`VertexAIConfig`, optional): Vertex AI config for regional deployments.
+  - **project** (`string`): Google Cloud project ID.
+  - **location** (`string`): Google Cloud location (e.g., `"us-central1"`, `"europe-west1"`).
+
+##### Vertex AI (Regional Deployment)
+
+For GDPR compliance or latency optimization, use Vertex AI with a specific region:
+
+```typescript
+const llmConfig: GoogleProviderConfig = {
+  provider: "google",
+  model: "gemini-2.0-flash",
+  vertexai: {
+    project: process.env.GOOGLE_CLOUD_PROJECT || "",
+    location: "europe-west1",
+  },
+};
+```
+
+Vertex AI uses [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials) for authentication:
+- **Development**: Run `gcloud auth application-default login`
+- **Production**: Set `GOOGLE_APPLICATION_CREDENTIALS` environment variable pointing to a service account key file
 
 #### OpenAI GPT
 
@@ -255,6 +277,20 @@ const llmConfig: OpenAIProviderConfig = {
   - `"low"`: Fewer reasoning tokens (faster)
   - `"medium"`: Balanced reasoning tokens (default when not specified)
   - `"high"`: More reasoning tokens (slower, more thorough)
+- **baseURL** (`string`, optional): Custom base URL for the API. Use for proxies or Azure-compatible endpoints.
+
+##### Custom Endpoint
+
+For custom deployments or proxies:
+
+```typescript
+const llmConfig: OpenAIProviderConfig = {
+  provider: "openai",
+  apiKey: process.env.OPENAI_API_KEY || "",
+  model: "gpt-4o",
+  baseURL: "https://my-proxy.example.com/v1",
+};
+```
 
 #### Reliability & Retries
 

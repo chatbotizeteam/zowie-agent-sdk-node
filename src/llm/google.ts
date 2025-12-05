@@ -13,6 +13,7 @@ import { BaseLLMProvider } from "./base.js";
 export class GoogleProvider extends BaseLLMProvider {
   private genAI?: GoogleGenAI;
   private readonly thinkingBudget: number | undefined;
+  private readonly vertexaiConfig: GoogleProviderConfig["vertexai"];
 
   constructor(
     config: GoogleProviderConfig,
@@ -21,15 +22,32 @@ export class GoogleProvider extends BaseLLMProvider {
   ) {
     super(config, "GoogleProvider", includePersonaDefault, includeContextDefault);
     this.thinkingBudget = config.thinkingBudget;
+    this.vertexaiConfig = config.vertexai;
   }
 
   private getGenAI() {
     if (!this.genAI) {
       try {
-        this.genAI = new GoogleGenAI({ apiKey: this.apiKey });
-      } catch (_error) {
+        if (this.vertexaiConfig) {
+          this.genAI = new GoogleGenAI({
+            vertexai: true,
+            project: this.vertexaiConfig.project,
+            location: this.vertexaiConfig.location,
+          });
+        } else {
+          if (!this.apiKey) {
+            throw new Error("Gemini API requires 'apiKey' to be configured.");
+          }
+          this.genAI = new GoogleGenAI({ apiKey: this.apiKey });
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("requires")) {
+          throw error;
+        }
         throw new Error(
-          "Failed to initialize Google Generative AI provider. Please check your API key."
+          this.vertexaiConfig
+            ? "Failed to initialize Vertex AI provider. Please check your project and location configuration."
+            : "Failed to initialize Google Generative AI provider. Please check your API key."
         );
       }
     }

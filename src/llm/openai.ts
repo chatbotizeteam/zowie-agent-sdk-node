@@ -14,6 +14,7 @@ import { BaseLLMProvider } from "./base.js";
 export class OpenAIProvider extends BaseLLMProvider {
   private openai?: OpenAI;
   private readonly reasoningEffort: "minimal" | "low" | "medium" | "high" | undefined;
+  private readonly baseURL: string | undefined;
 
   constructor(
     config: OpenAIProviderConfig,
@@ -22,6 +23,7 @@ export class OpenAIProvider extends BaseLLMProvider {
   ) {
     super(config, "OpenAIProvider", includePersonaDefault, includeContextDefault);
     this.reasoningEffort = config.reasoningEffort;
+    this.baseURL = config.baseURL;
   }
 
   private getOpenAI() {
@@ -30,6 +32,7 @@ export class OpenAIProvider extends BaseLLMProvider {
         this.openai = new OpenAI({
           apiKey: this.apiKey,
           maxRetries: 3,
+          ...(this.baseURL && { baseURL: this.baseURL }),
         });
       } catch (_error) {
         throw new Error("Failed to initialize OpenAI provider. Please check your API key.");

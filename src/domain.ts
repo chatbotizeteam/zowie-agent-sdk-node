@@ -26,13 +26,26 @@ export interface OpenAIProviderConfig {
   apiKey: string;
   model: string;
   reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  /** Custom base URL for the API (e.g., for proxies or Azure-compatible endpoints) */
+  baseURL?: string;
+}
+
+/** Vertex AI configuration for regional Google Cloud deployments */
+export interface VertexAIConfig {
+  /** Google Cloud project ID */
+  project: string;
+  /** Google Cloud location (e.g., "us-central1", "europe-west1") */
+  location: string;
 }
 
 export interface GoogleProviderConfig {
   provider: "google";
-  apiKey: string;
   model: string;
   thinkingBudget?: number;
+  /** API key for Gemini API. Required when vertexai is not set. */
+  apiKey?: string;
+  /** Vertex AI config for regional deployments. Uses ADC for authentication. */
+  vertexai?: VertexAIConfig;
 }
 
 export type LLMConfig = OpenAIProviderConfig | GoogleProviderConfig;

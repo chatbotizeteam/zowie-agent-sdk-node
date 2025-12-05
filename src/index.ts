@@ -22,6 +22,7 @@ export type {
   LLMConfig,
   OpenAIProviderConfig,
   TransferToBlockResponse,
+  VertexAIConfig,
 } from "./domain.js";
 // HTTP client options
 export type { HTTPRequestOptions } from "./http.js";
