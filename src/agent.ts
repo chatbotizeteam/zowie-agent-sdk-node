@@ -26,6 +26,18 @@ const DEFAULT_REQUEST_SIZE_LIMIT = "10mb";
 const DEFAULT_SERVER_PORT = 3000;
 
 /**
+ * Options for handleRequest method
+ */
+export interface HandleRequestOptions {
+  /** Request path (default: "/") */
+  path?: string;
+  /** URL query parameters */
+  queryParams?: Record<string, string | string[]>;
+  /** HTTP headers */
+  headers?: Record<string, string>;
+}
+
+/**
  * Configuration options for creating an Agent instance
  */
 export interface AgentOptions {
@@ -145,7 +157,7 @@ export abstract class Agent {
    * Useful for Next.js App Router, Cloudflare Workers, AWS Lambda, etc.
    *
    * @param body - The raw request body (will be validated)
-   * @param path - The request path (default: "/")
+   * @param options - Optional request options (path, query, headers)
    * @returns Promise resolving to the external agent response
    *
    * @example
@@ -153,12 +165,21 @@ export abstract class Agent {
    * // Next.js App Router
    * export async function POST(req: NextRequest) {
    *   const body = await req.json();
-   *   const response = await agent.handleRequest(body, "/my-path");
+   *   const url = new URL(req.url);
+   *   const response = await agent.handleRequest(body, {
+   *     path: url.pathname,
+   *     query: Object.fromEntries(url.searchParams),
+   *     headers: Object.fromEntries(req.headers),
+   *   });
    *   return NextResponse.json(response);
    * }
    * ```
    */
-  async handleRequest(body: unknown, path: string = "/"): Promise<ExternalAgentResponse> {
+  async handleRequest(
+    body: unknown,
+    options: HandleRequestOptions = {}
+  ): Promise<ExternalAgentResponse> {
+    const { path = "/", queryParams = {}, headers = {} } = options;
     const startTime = Date.now();
 
     // Validate the incoming request
@@ -178,6 +199,8 @@ export abstract class Agent {
       request.metadata,
       request.messages,
       path,
+      queryParams,
+      headers,
       storeValue,
       this.baseLLM,
       this.baseHTTPClient,
@@ -259,7 +282,31 @@ export abstract class Agent {
       this.authValidator.middleware(),
       async (req: Request, res: Response) => {
         try {
-          const response = await this.handleRequest(req.body, req.path);
+          // Convert Express query to plain object
+          const queryParams: Record<string, string | string[]> = {};
+          for (const [key, value] of Object.entries(req.query)) {
+            if (typeof value === "string") {
+              queryParams[key] = value;
+            } else if (Array.isArray(value)) {
+              queryParams[key] = value.filter((v): v is string => typeof v === "string");
+            }
+          }
+
+          // Convert Express headers to plain object
+          const headers: Record<string, string> = {};
+          for (const [key, value] of Object.entries(req.headers)) {
+            if (typeof value === "string") {
+              headers[key] = value;
+            } else if (Array.isArray(value)) {
+              headers[key] = value[0] || "";
+            }
+          }
+
+          const response = await this.handleRequest(req.body, {
+            path: req.path,
+            queryParams,
+            headers,
+          });
           res.json(response);
         } catch (error) {
           // Check if it's a validation error (Zod error)

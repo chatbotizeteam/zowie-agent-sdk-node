@@ -5,7 +5,7 @@
  */
 
 // Core classes
-export { Agent, type AgentOptions } from "./agent.js";
+export { Agent, type AgentOptions, type HandleRequestOptions } from "./agent.js";
 export { Context } from "./context.js";
 
 // Configuration types
@@ -22,6 +22,7 @@ export type {
   LLMConfig,
   OpenAIProviderConfig,
   TransferToBlockResponse,
+  VertexAIConfig,
 } from "./domain.js";
 // HTTP client options
 export type { HTTPRequestOptions } from "./http.js";

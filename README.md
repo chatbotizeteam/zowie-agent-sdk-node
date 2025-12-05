@@ -227,13 +227,35 @@ const llmConfig: GoogleProviderConfig = {
 };
 ```
 
-- **apiKey** (`string`): Your Google AI API key.
+- **apiKey** (`string`): Your Google AI API key (required when `vertexai` is not set).
 - **model** (`string`): The model name to use.
 - **thinkingBudget** (`number`, optional): Controls the reasoning token budget for thinking-capable models (e.g., gemini-2.5-pro).
   - Positive values (e.g., `1024`, `2048`): Set a specific token budget for reasoning
   - `0`: Disable thinking/reasoning
   - `-1`: Enable dynamic thinking budget
   - Minimum budget for gemini-2.5-pro: `128` tokens
+- **vertexai** (`VertexAIConfig`, optional): Vertex AI config for regional deployments.
+  - **project** (`string`): Google Cloud project ID.
+  - **location** (`string`): Google Cloud location (e.g., `"us-central1"`, `"europe-west1"`).
+
+##### Vertex AI (Regional Deployment)
+
+For GDPR compliance or latency optimization, use Vertex AI with a specific region:
+
+```typescript
+const llmConfig: GoogleProviderConfig = {
+  provider: "google",
+  model: "gemini-2.0-flash",
+  vertexai: {
+    project: process.env.GOOGLE_CLOUD_PROJECT || "",
+    location: "europe-west1",
+  },
+};
+```
+
+Vertex AI uses [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials) for authentication:
+- **Development**: Run `gcloud auth application-default login`
+- **Production**: Set `GOOGLE_APPLICATION_CREDENTIALS` environment variable pointing to a service account key file
 
 #### OpenAI GPT
 
@@ -255,6 +277,20 @@ const llmConfig: OpenAIProviderConfig = {
   - `"low"`: Fewer reasoning tokens (faster)
   - `"medium"`: Balanced reasoning tokens (default when not specified)
   - `"high"`: More reasoning tokens (slower, more thorough)
+- **baseURL** (`string`, optional): Custom base URL for the API. Use for proxies or Azure-compatible endpoints.
+
+##### Custom Endpoint
+
+For custom deployments or proxies:
+
+```typescript
+const llmConfig: OpenAIProviderConfig = {
+  provider: "openai",
+  apiKey: process.env.OPENAI_API_KEY || "",
+  model: "gpt-4o",
+  baseURL: "https://my-proxy.example.com/v1",
+};
+```
 
 #### Reliability & Retries
 
@@ -347,7 +383,7 @@ The `Agent` class is the base for all agents. Inherit from this class and implem
 #### Agent Methods
 
 - `handle(context: Context): Promise<AgentResponse>`: Abstract method you must implement with your agent logic.
-- `handleRequest(body: unknown, path?: string): Promise<ExternalAgentResponse>`: Process a raw request without Express. Useful for Next.js, Cloudflare Workers, AWS Lambda, etc.
+- `handleRequest(body: unknown, options?: HandleRequestOptions): Promise<ExternalAgentResponse>`: Process a raw request without Express. Useful for Next.js, Cloudflare Workers, AWS Lambda, etc. Options include `path`, `queryParams`, and `headers`.
 - `listen(port?: number): Promise<void>`: Start the Express server on the specified port (default: 3000).
 - `close(): Promise<void>`: Gracefully close the HTTP server.
 
@@ -434,7 +470,19 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await req.json();
-    const response = await agent.handleRequest(body, `/${id}`);
+    const url = new URL(req.url);
+
+    // Convert headers to plain object
+    const headers: Record<string, string> = {};
+    req.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+
+    const response = await agent.handleRequest(body, {
+      path: `/${id}`,
+      queryParams: Object.fromEntries(url.searchParams),
+      headers,
+    });
     return NextResponse.json(response);
   } catch (error: unknown) {
     if (error && typeof error === "object" && "name" in error && error.name === "ZodError") {
@@ -445,7 +493,7 @@ export async function POST(
 }
 ```
 
-**Note:** When using `handleRequest`, authentication must be handled in your route handler since the SDK's `authConfig` only applies to the Express server.
+**Note:** When using `handleRequest`, authentication must be handled in your route handler (e.g., Next.js middleware). The SDK's `authConfig` only applies to the Express server.
 
 ### Context Class
 
@@ -454,6 +502,8 @@ The `Context` object provides access to all request data and pre-configured clie
 - `metadata: Metadata`: Request metadata (IDs, timestamps).
 - `messages: Message[]`: Conversation message history.
 - `path: string`: The HTTP request path (e.g., `"/"`, `"/v2/handle"`).
+- `queryParams: Record<string, string | string[]>`: URL query parameters.
+- `headers: Record<string, string>`: HTTP request headers.
 - `context?: string`: Context string from the Zowie configuration.
 - `persona?: Persona`: Chatbot persona information.
 - `llm: LLM`: LLM client with automatic context injection and event tracking.

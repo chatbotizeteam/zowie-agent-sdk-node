@@ -16,6 +16,8 @@ export class Context {
   public readonly metadata: Metadata;
   public readonly messages: Message[];
   public readonly path: string;
+  public readonly queryParams: Record<string, string | string[]>;
+  public readonly headers: Record<string, string>;
   public readonly persona?: Persona | undefined;
   public readonly context?: string | undefined;
   public readonly events: Event[];
@@ -30,6 +32,8 @@ export class Context {
     metadata: Metadata,
     messages: Message[],
     path: string,
+    queryParams: Record<string, string | string[]>,
+    headers: Record<string, string>,
     storeValue: (key: string, value: unknown) => void,
     llm: LLM,
     http: HTTPClient,
@@ -40,6 +44,8 @@ export class Context {
     this.metadata = metadata;
     this.messages = messages;
     this.path = path;
+    this.queryParams = queryParams;
+    this.headers = headers;
     this.storeValue = storeValue;
     this.baseLLM = llm;
     this.baseHTTP = http;

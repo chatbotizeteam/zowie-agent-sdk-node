@@ -11,7 +11,7 @@ import { getTimeMs } from "../utils.js";
 
 export abstract class BaseLLMProvider {
   protected readonly model: string;
-  protected readonly apiKey: string;
+  protected readonly apiKey: string | undefined;
   protected readonly includePersonaDefault: boolean;
   protected readonly includeContextDefault: boolean;
   protected readonly logger: winston.Logger;
