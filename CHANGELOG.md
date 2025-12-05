@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Enables GDPR compliance and latency optimization with regional endpoints (e.g., `europe-west1`)
   - **OpenAI custom endpoint** - New `baseURL` option for custom API endpoints
     - Supports proxies, Azure-compatible endpoints, and other OpenAI-compatible APIs
+- **Enhanced serverless support** - `handleRequest` now accepts options object with `path`, `queryParams`, and `headers`
+  - `context.queryParams` - Access URL query parameters in your agent
+  - `context.headers` - Access HTTP request headers in your agent
+  - New `HandleRequestOptions` type exported from SDK
+
+### Changed
+
+- **Breaking:** `handleRequest(body, path?)` signature changed to `handleRequest(body, options?)`
+  - Migration: Replace `handleRequest(body, path)` with `handleRequest(body, { path })`
+  - Authentication is not auto-validated in `handleRequest` - handle auth in your framework (e.g., Next.js middleware)
 
 ## [0.5.0] - 2025-12-04
 
