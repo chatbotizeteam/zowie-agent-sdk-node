@@ -54,6 +54,7 @@ describe("Basic SDK Functionality", () => {
         requestId: "test-123",
         chatbotId: "bot-456",
         conversationId: "conv-789",
+        sequence: 1,
       },
       messages: [
         {

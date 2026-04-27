@@ -20,6 +20,7 @@ describe("Protocol Validation", () => {
         chatbotId: "bot-456",
         conversationId: "conv-789",
         interactionId: "int-000",
+        sequence: 2,
       };
 
       const result = MetadataSchema.parse(validMetadata);
@@ -29,10 +30,32 @@ describe("Protocol Validation", () => {
     test("should require mandatory fields", () => {
       const invalidMetadata = {
         requestId: "req-123",
-        // Missing chatbotId and conversationId
+        // Missing chatbotId, conversationId, and sequence
       };
 
       expect(() => MetadataSchema.parse(invalidMetadata)).toThrow();
+    });
+
+    test("should require sequence", () => {
+      const missingSequence = {
+        requestId: "req-123",
+        chatbotId: "bot-456",
+        conversationId: "conv-789",
+      };
+
+      expect(() => MetadataSchema.parse(missingSequence)).toThrow();
+    });
+
+    test("should expose sequence on parsed metadata", () => {
+      const metadata = {
+        requestId: "req-123",
+        chatbotId: "bot-456",
+        conversationId: "conv-789",
+        sequence: 7,
+      };
+
+      const result = MetadataSchema.parse(metadata);
+      expect(result.sequence).toBe(7);
     });
   });
 
@@ -85,6 +108,7 @@ describe("Protocol Validation", () => {
           requestId: "req-123",
           chatbotId: "bot-456",
           conversationId: "conv-789",
+          sequence: 1,
         },
         messages: [
           {
@@ -110,6 +134,7 @@ describe("Protocol Validation", () => {
           requestId: "req-123",
           chatbotId: "bot-456",
           conversationId: "conv-789",
+          sequence: 1,
         },
         messages: [],
       };

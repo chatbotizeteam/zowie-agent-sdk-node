@@ -182,6 +182,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "real-google-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "real-google-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -230,6 +231,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "real-google-structured-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "real-google-structured-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -280,6 +282,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "real-openai-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "real-openai-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -323,6 +326,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "real-openai-structured-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "real-openai-structured-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -373,6 +377,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
         requestId: "real-http-test-1",
         chatbotId: "e2e-test-bot",
         conversationId: "real-http-conv",
+        sequence: 1,
       },
       messages: [
         {
@@ -444,6 +449,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "params-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "params-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -509,6 +515,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "multi-candidate-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "multi-candidate-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -579,6 +586,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "structured-multi-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "structured-multi-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -641,6 +649,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "openai-params-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "openai-params-conv",
+          sequence: 1,
         },
         messages: [
           {
@@ -701,6 +710,7 @@ describeWithApiKeys("Real API Integration Tests", () => {
           requestId: "openai-multi-test-1",
           chatbotId: "e2e-test-bot",
           conversationId: "openai-multi-conv",
+          sequence: 1,
         },
         messages: [
           {

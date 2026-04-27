@@ -10,6 +10,7 @@ describe("Context", () => {
     chatbotId: "bot-456",
     conversationId: "conv-789",
     interactionId: "int-012",
+    sequence: 1,
   };
 
   const mockMessages: Message[] = [

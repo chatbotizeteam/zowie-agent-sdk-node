@@ -14,6 +14,7 @@ export const MetadataSchema = z.object({
   chatbotId: z.string(),
   conversationId: z.string(),
   interactionId: z.string().optional(),
+  sequence: z.number(),
 });
 
 export type Metadata = z.infer<typeof MetadataSchema>;

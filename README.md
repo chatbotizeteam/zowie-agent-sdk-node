@@ -522,6 +522,7 @@ interface Metadata {
   chatbotId: string;
   conversationId: string;
   interactionId?: string;
+  sequence: number;
 }
 ```
 
@@ -1054,7 +1055,8 @@ The incoming request from Zowie will have the following JSON structure.
     "requestId": "unique-request-id",
     "chatbotId": "chatbot-identifier",
     "conversationId": "conversation-identifier",
-    "interactionId": "optional-interaction-id"
+    "interactionId": "optional-interaction-id",
+    "sequence": 1
   },
   "messages": [
     {
