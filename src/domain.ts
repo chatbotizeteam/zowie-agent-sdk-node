@@ -6,6 +6,8 @@
  * external API contract.
  */
 
+import type { HttpOptions } from "@google/genai";
+
 // Agent response types (internal)
 export interface ContinueConversationResponse {
   type: "continue";
@@ -36,6 +38,8 @@ export interface VertexAIConfig {
   project: string;
   /** Google Cloud location (e.g., "us-central1", "europe-west1") */
   location: string;
+  /** Optional HTTP options forwarded to GoogleGenAI (headers, apiVersion, timeout, etc.) */
+  httpOptions?: HttpOptions;
 }
 
 export interface GoogleProviderConfig {

@@ -33,6 +33,9 @@ export class GoogleProvider extends BaseLLMProvider {
             vertexai: true,
             project: this.vertexaiConfig.project,
             location: this.vertexaiConfig.location,
+            ...(this.vertexaiConfig.httpOptions && {
+              httpOptions: this.vertexaiConfig.httpOptions,
+            }),
           });
         } else {
           if (!this.apiKey) {

@@ -30,6 +30,26 @@ describe("LLM Integration", () => {
       expect(llm).toBeDefined();
     });
 
+    it("should create Google provider with vertexai config and httpOptions", () => {
+      const config: GoogleProviderConfig = {
+        provider: "google",
+        model: "gemini-2.5-flash",
+        vertexai: {
+          project: "test-project",
+          location: "us-central1",
+          httpOptions: {
+            apiVersion: "v1",
+            headers: {
+              "X-Vertex-AI-LLM-Request-Type": "shared",
+              "X-Vertex-AI-LLM-Shared-Request-Type": "priority",
+            },
+          },
+        },
+      };
+      const llm = new LLM(config, true, true);
+      expect(llm).toBeDefined();
+    });
+
     it("should create Google provider with thinkingBudget config", () => {
       const config: GoogleProviderConfig = {
         provider: "google",

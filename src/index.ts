@@ -24,6 +24,8 @@ export type {
   TransferToBlockResponse,
   VertexAIConfig,
 } from "./domain.js";
+// Re-export Google GenAI HttpOptions for typing vertexai.httpOptions
+export type { HttpOptions } from "@google/genai";
 // HTTP client options
 export type { HTTPRequestOptions } from "./http.js";
 // Protocol types (for user code)
