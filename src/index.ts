@@ -4,10 +4,11 @@
  * A TypeScript framework for building external agents that integrate with Zowie Decision Engine.
  */
 
+// Re-export Google GenAI HttpOptions for typing vertexai.httpOptions
+export type { HttpOptions } from "@google/genai";
 // Core classes
 export { Agent, type AgentOptions, type HandleRequestOptions } from "./agent.js";
 export { Context } from "./context.js";
-
 // Configuration types
 export type {
   AgentResponse,
@@ -24,8 +25,6 @@ export type {
   TransferToBlockResponse,
   VertexAIConfig,
 } from "./domain.js";
-// Re-export Google GenAI HttpOptions for typing vertexai.httpOptions
-export type { HttpOptions } from "@google/genai";
 // HTTP client options
 export type { HTTPRequestOptions } from "./http.js";
 // Protocol types (for user code)
