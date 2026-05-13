@@ -111,6 +111,7 @@ export class AuthValidator {
       throw new AuthError(500, "Invalid auth config");
     }
 
+    // biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature requires bracket notation for Record<string, string>
     const authorization = headers["authorization"];
     if (!authorization || !authorization.startsWith("Basic ")) {
       throw new AuthError(401, "Missing or invalid Authorization header");
@@ -147,6 +148,7 @@ export class AuthValidator {
       throw new AuthError(500, "Invalid auth config");
     }
 
+    // biome-ignore lint/complexity/useLiteralKeys: noPropertyAccessFromIndexSignature requires bracket notation for Record<string, string>
     const authorization = headers["authorization"];
     if (!authorization || !authorization.startsWith("Bearer ")) {
       throw new AuthError(401, "Missing or invalid Authorization header");
