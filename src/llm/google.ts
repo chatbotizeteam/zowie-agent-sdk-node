@@ -8,7 +8,7 @@ import type { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { GoogleProviderConfig } from "../domain.js";
 import type { Event, Message, Persona } from "../protocol.js";
-import { BaseLLMProvider } from "./base.js";
+import { BaseLLMProvider, formatMessageContent } from "./base.js";
 
 export class GoogleProvider extends BaseLLMProvider {
   private genAI?: GoogleGenAI;
@@ -364,7 +364,7 @@ export class GoogleProvider extends BaseLLMProvider {
     for (const message of messages) {
       history.push({
         role: message.author === "User" ? "user" : "model",
-        parts: [{ text: message.content }],
+        parts: [{ text: formatMessageContent(message) }],
       });
     }
 

@@ -23,6 +23,14 @@ export const MessageSchema = z.object({
   author: z.enum(["User", "Chatbot"]),
   content: z.string(),
   timestamp: z.string().datetime(),
+  /** Chatbot messages only: the chatbot response was skipped before delivery. */
+  skipped: z.boolean().optional(),
+  /**
+   * Chatbot messages only: delivery of the chatbot response was interrupted
+   * mid-message (e.g. the user barged in on a voice call); the user may have
+   * seen or heard only part of the content.
+   */
+  interrupted: z.boolean().optional(),
 });
 
 export type Message = z.infer<typeof MessageSchema>;
@@ -137,6 +145,23 @@ export type ExternalAgentResponse = z.infer<typeof ExternalAgentResponseSchema>;
  */
 export function parseIncomingRequest(data: unknown): IncomingRequest {
   return IncomingRequestSchema.parse(data);
+}
+
+/**
+ * Filters out chatbot messages flagged `skipped` or `interrupted` unless the
+ * corresponding flag opts them in. User messages never carry these flags and
+ * are always kept.
+ */
+export function filterMessages(
+  messages: Message[],
+  includeSkipped: boolean,
+  includeInterrupted: boolean
+): Message[] {
+  return messages.filter((m) => {
+    if (m.skipped && !includeSkipped) return false;
+    if (m.interrupted && !includeInterrupted) return false;
+    return true;
+  });
 }
 
 /**

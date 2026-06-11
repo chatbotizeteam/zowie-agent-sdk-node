@@ -17,7 +17,7 @@ import { HTTPClient } from "./http.js";
 import { LLM } from "./llm/index.js";
 import { getLogger } from "./logger.js";
 import type { Event, ExternalAgentResponse } from "./protocol.js";
-import { parseIncomingRequest } from "./protocol.js";
+import { filterMessages, parseIncomingRequest } from "./protocol.js";
 import { getTimeMs } from "./utils.js";
 
 // Configuration constants
@@ -62,6 +62,12 @@ export interface AgentOptions {
   /** Whether to include HTTP request bodies in event logs (default: true) */
   includeRequestBodiesInEventsByDefault?: boolean | undefined;
 
+  /** Whether to keep chatbot messages flagged `skipped` in context.messages (default: false) */
+  includeSkippedMessagesByDefault?: boolean | undefined;
+
+  /** Whether to keep chatbot messages flagged `interrupted` in context.messages (default: false) */
+  includeInterruptedMessagesByDefault?: boolean | undefined;
+
   /** Logging level (default: "info") */
   logLevel?: string | undefined;
 
@@ -99,6 +105,8 @@ export abstract class Agent {
   private readonly includeContextByDefault: boolean;
   private readonly includeHttpHeadersByDefault: boolean;
   private readonly includeRequestBodiesInEventsByDefault: boolean;
+  private readonly includeSkippedMessagesByDefault: boolean;
+  private readonly includeInterruptedMessagesByDefault: boolean;
   private readonly logLevel: string;
   private readonly authValidator: AuthValidator;
   private readonly baseLLM: LLM;
@@ -117,6 +125,8 @@ export abstract class Agent {
     this.includeHttpHeadersByDefault = options.includeHttpHeadersByDefault ?? true;
     this.includeRequestBodiesInEventsByDefault =
       options.includeRequestBodiesInEventsByDefault ?? true;
+    this.includeSkippedMessagesByDefault = options.includeSkippedMessagesByDefault ?? false;
+    this.includeInterruptedMessagesByDefault = options.includeInterruptedMessagesByDefault ?? false;
     this.logLevel = options.logLevel ?? "info";
     this.authValidator = new AuthValidator(options.authConfig);
 
@@ -188,6 +198,13 @@ export abstract class Agent {
 
     this.logger.info("Processing request", { requestId, path });
 
+    // Exclude skipped/interrupted chatbot messages unless explicitly opted in.
+    const messages = filterMessages(
+      request.messages,
+      this.includeSkippedMessagesByDefault,
+      this.includeInterruptedMessagesByDefault
+    );
+
     const valueStorage: Record<string, unknown> = {};
     const events: Event[] = [];
 
@@ -197,7 +214,7 @@ export abstract class Agent {
 
     const context = new Context(
       request.metadata,
-      request.messages,
+      messages,
       path,
       queryParams,
       headers,
