@@ -8,7 +8,7 @@ import type { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type { GoogleProviderConfig } from "../domain.js";
 import type { Event, Message, Persona } from "../protocol.js";
-import { BaseLLMProvider, formatMessageContent } from "./base.js";
+import { BaseLLMProvider, prepareMessagesForLLM } from "./base.js";
 
 export class GoogleProvider extends BaseLLMProvider {
   private genAI?: GoogleGenAI;
@@ -117,7 +117,8 @@ export class GoogleProvider extends BaseLLMProvider {
       context
     );
 
-    const chatHistory = this.prepareHistory(messages);
+    const llmMessages = prepareMessagesForLLM(messages);
+    const chatHistory = this.prepareHistory(llmMessages);
 
     return this.withTiming(
       async () => {
@@ -140,7 +141,7 @@ export class GoogleProvider extends BaseLLMProvider {
         );
         return response.text || "";
       },
-      messages,
+      llmMessages,
       systemInstructionText,
       events,
       undefined,
@@ -169,7 +170,8 @@ export class GoogleProvider extends BaseLLMProvider {
       context
     );
 
-    const chatHistory = this.prepareHistory(messages);
+    const llmMessages = prepareMessagesForLLM(messages);
+    const chatHistory = this.prepareHistory(llmMessages);
     const responseSchema = zodToJsonSchema(schema);
 
     return this.withTiming(
@@ -203,7 +205,7 @@ export class GoogleProvider extends BaseLLMProvider {
           throw new Error(`Failed to parse structured response: ${error}\nResponse: ${content}`);
         }
       },
-      messages,
+      llmMessages,
       systemInstructionText,
       events,
       responseSchema,
@@ -232,7 +234,8 @@ export class GoogleProvider extends BaseLLMProvider {
       context
     );
 
-    const chatHistory = this.prepareHistory(messages);
+    const llmMessages = prepareMessagesForLLM(messages);
+    const chatHistory = this.prepareHistory(llmMessages);
 
     return this.withTiming(
       async () => {
@@ -271,7 +274,7 @@ export class GoogleProvider extends BaseLLMProvider {
 
         return results;
       },
-      messages,
+      llmMessages,
       systemInstructionText,
       events,
       undefined,
@@ -301,7 +304,8 @@ export class GoogleProvider extends BaseLLMProvider {
       context
     );
 
-    const chatHistory = this.prepareHistory(messages);
+    const llmMessages = prepareMessagesForLLM(messages);
+    const chatHistory = this.prepareHistory(llmMessages);
     const responseSchema = zodToJsonSchema(schema);
 
     return this.withTiming(
@@ -350,7 +354,7 @@ export class GoogleProvider extends BaseLLMProvider {
 
         return results;
       },
-      messages,
+      llmMessages,
       systemInstructionText,
       events,
       responseSchema,
@@ -364,7 +368,7 @@ export class GoogleProvider extends BaseLLMProvider {
     for (const message of messages) {
       history.push({
         role: message.author === "User" ? "user" : "model",
-        parts: [{ text: formatMessageContent(message) }],
+        parts: [{ text: message.content }],
       });
     }
 

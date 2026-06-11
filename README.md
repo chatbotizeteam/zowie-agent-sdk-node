@@ -375,10 +375,9 @@ interrupted mid-delivery are removed from `context.messages` (and therefore from
 calls). Set either to `true` to opt into receiving those messages. Leaving them unset
 preserves the behavior of earlier SDK versions, so upgrading is non-breaking.
 
-When these messages **are** included and passed to an LLM, the SDK prefixes their content so
-the model is aware of the delivery state. The prefix is applied only to the messages sent to
-the provider (OpenAI / Gemini) — your `context.messages` and the event logs keep the original
-content plus the `skipped` / `interrupted` flags:
+When these messages **are** included and passed to an LLM, the SDK encodes the delivery state
+directly into the message content by prefixing it. The `skipped` / `interrupted` properties
+themselves are **not** sent to the provider (OpenAI / Gemini) — only the prefixed content is:
 
 | Message flags | Content sent to the LLM        |
 | ------------------------------------- | ------------------------------ |
@@ -386,6 +385,11 @@ content plus the `skipped` / `interrupted` flags:
 | `interrupted: true`                   | `INTERRUPTED: <content>`       |
 | `skipped: true` and `interrupted: true` | `SKIPPED/INTERRUPTED: <content>` |
 | neither                               | `<content>` (unchanged)        |
+
+The `llm_call` event log records exactly what was sent to the provider — i.e. the prefixed
+content with the flags stripped — so the log faithfully reflects what the model saw. Your
+handler's `context.messages` is untouched: it still contains the original content plus the
+`skipped` / `interrupted` flags.
 
 ---
 

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { z } from "zod";
 import type { GoogleProviderConfig, OpenAIProviderConfig } from "../src/domain";
-import { formatMessageContent } from "../src/llm/base";
+import { formatMessageContent, prepareMessagesForLLM } from "../src/llm/base";
 import { LLM } from "../src/llm/index";
 import type { Message, Persona } from "../src/protocol";
 
@@ -660,93 +660,173 @@ describe("formatMessageContent", () => {
   });
 });
 
-describe("Provider message conversion", () => {
-  const ts = "2024-01-01T12:00:00Z";
+// Mixed conversation reused across conversion tests:
+// plain user, plain chatbot, skipped, interrupted, both.
+const conversionTs = "2024-01-01T12:00:00Z";
+const mixedMessages: Message[] = [
+  { author: "User", content: "hi", timestamp: conversionTs },
+  { author: "Chatbot", content: "reply", timestamp: conversionTs },
+  { author: "Chatbot", content: "s", timestamp: conversionTs, skipped: true },
+  { author: "Chatbot", content: "i", timestamp: conversionTs, interrupted: true },
+  { author: "Chatbot", content: "b", timestamp: conversionTs, skipped: true, interrupted: true },
+];
 
-  // Mixed conversation: plain user, plain chatbot, skipped, interrupted, both.
-  const mixedMessages: Message[] = [
-    { author: "User", content: "hi", timestamp: ts },
-    { author: "Chatbot", content: "reply", timestamp: ts },
-    { author: "Chatbot", content: "s", timestamp: ts, skipped: true },
-    { author: "Chatbot", content: "i", timestamp: ts, interrupted: true },
-    { author: "Chatbot", content: "b", timestamp: ts, skipped: true, interrupted: true },
-  ];
+// What the LLM-facing messages look like: content prefixed, flags dropped.
+const expectedLLMMessages = [
+  { author: "User", content: "hi", timestamp: conversionTs },
+  { author: "Chatbot", content: "reply", timestamp: conversionTs },
+  { author: "Chatbot", content: "SKIPPED: s", timestamp: conversionTs },
+  { author: "Chatbot", content: "INTERRUPTED: i", timestamp: conversionTs },
+  { author: "Chatbot", content: "SKIPPED/INTERRUPTED: b", timestamp: conversionTs },
+];
 
-  describe("OpenAI prepareMessages", () => {
-    let provider: {
-      prepareMessages: (
-        messages: Message[],
-        systemInstruction?: string
-      ) => Array<{ role: string; content: string }>;
-    };
-
-    beforeEach(async () => {
-      const config: OpenAIProviderConfig = {
-        provider: "openai",
-        apiKey: "test-key",
-        model: "gpt-5-mini",
-      };
-      const llm = new LLM(config, true, true);
-      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
-      provider = await (llm as any).getProvider();
-    });
-
-    it("maps roles and prefixes flagged content", () => {
-      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
-      const result = (provider as any).prepareMessages(mixedMessages);
-
-      expect(result).toEqual([
-        { role: "user", content: "hi" },
-        { role: "assistant", content: "reply" },
-        { role: "assistant", content: "SKIPPED: s" },
-        { role: "assistant", content: "INTERRUPTED: i" },
-        { role: "assistant", content: "SKIPPED/INTERRUPTED: b" },
-      ]);
-    });
-
-    it("emits an unprefixed leading system message", () => {
-      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
-      const result = (provider as any).prepareMessages(
-        [{ author: "Chatbot", content: "x", timestamp: ts, skipped: true }],
-        "You are helpful"
-      );
-
-      expect(result).toEqual([
-        { role: "system", content: "You are helpful" },
-        { role: "assistant", content: "SKIPPED: x" },
-      ]);
-    });
+describe("prepareMessagesForLLM", () => {
+  it("prefixes content with the delivery state and drops the flags", () => {
+    const result = prepareMessagesForLLM(mixedMessages);
+    expect(result).toEqual(expectedLLMMessages);
   });
 
-  describe("Google prepareHistory", () => {
-    let provider: {
-      prepareHistory: (
-        messages: Message[]
-      ) => Array<{ role: string; parts: Array<{ text: string }> }>;
+  it("does not carry skipped/interrupted keys on any message", () => {
+    for (const message of prepareMessagesForLLM(mixedMessages)) {
+      expect("skipped" in message).toBe(false);
+      expect("interrupted" in message).toBe(false);
+    }
+  });
+
+  it("does not mutate the input messages", () => {
+    const input = [
+      { author: "Chatbot" as const, content: "x", timestamp: conversionTs, skipped: true },
+    ];
+    prepareMessagesForLLM(input);
+    expect(input[0]).toEqual({
+      author: "Chatbot",
+      content: "x",
+      timestamp: conversionTs,
+      skipped: true,
+    });
+  });
+});
+
+describe("OpenAI provider sends & logs prefixed content", () => {
+  // biome-ignore lint/suspicious/noExplicitAny: test mock holders
+  let provider: any;
+  // biome-ignore lint/suspicious/noExplicitAny: test mock holders
+  let create: any;
+  // biome-ignore lint/suspicious/noExplicitAny: test mock holders
+  let events: any[];
+
+  beforeEach(async () => {
+    const config: OpenAIProviderConfig = {
+      provider: "openai",
+      apiKey: "test-key",
+      model: "gpt-5-mini",
     };
+    const llm = new LLM(config, true, true);
+    // biome-ignore lint/suspicious/noExplicitAny: accessing internals for testing
+    provider = await (llm as any).getProvider();
+    create = jest.fn();
+    create.mockResolvedValue({ choices: [{ message: { content: "ok" } }] });
+    provider.openai = { chat: { completions: { create } } };
+    events = [];
+  });
 
-    beforeEach(async () => {
-      const config: GoogleProviderConfig = {
-        provider: "google",
-        apiKey: "test-key",
-        model: "gemini-2.5-flash",
-      };
-      const llm = new LLM(config, true, true);
-      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
-      provider = await (llm as any).getProvider();
-    });
+  it("sends prefixed content (role + content only) to OpenAI", async () => {
+    await provider.generateContent(
+      mixedMessages,
+      undefined,
+      false,
+      false,
+      undefined,
+      undefined,
+      events
+    );
 
-    it("maps roles and prefixes flagged content", () => {
-      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
-      const result = (provider as any).prepareHistory(mixedMessages);
+    const sent = create.mock.calls[0][0].messages;
+    expect(sent).toEqual([
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "reply" },
+      { role: "assistant", content: "SKIPPED: s" },
+      { role: "assistant", content: "INTERRUPTED: i" },
+      { role: "assistant", content: "SKIPPED/INTERRUPTED: b" },
+    ]);
+  });
 
-      expect(result).toEqual([
-        { role: "user", parts: [{ text: "hi" }] },
-        { role: "model", parts: [{ text: "reply" }] },
-        { role: "model", parts: [{ text: "SKIPPED: s" }] },
-        { role: "model", parts: [{ text: "INTERRUPTED: i" }] },
-        { role: "model", parts: [{ text: "SKIPPED/INTERRUPTED: b" }] },
-      ]);
-    });
+  it("logs exactly what was sent: prefixed content and no skipped/interrupted keys", async () => {
+    await provider.generateContent(
+      mixedMessages,
+      undefined,
+      false,
+      false,
+      undefined,
+      undefined,
+      events
+    );
+
+    const promptData = JSON.parse(events[0].payload.prompt);
+    expect(promptData.messages).toEqual(expectedLLMMessages);
+    expect(events[0].payload.prompt).not.toContain('"skipped"');
+    expect(events[0].payload.prompt).not.toContain('"interrupted"');
+  });
+});
+
+describe("Google provider sends & logs prefixed content", () => {
+  // biome-ignore lint/suspicious/noExplicitAny: test mock holders
+  let provider: any;
+  // biome-ignore lint/suspicious/noExplicitAny: test mock holders
+  let generateContent: any;
+  // biome-ignore lint/suspicious/noExplicitAny: test mock holders
+  let events: any[];
+
+  beforeEach(async () => {
+    const config: GoogleProviderConfig = {
+      provider: "google",
+      apiKey: "test-key",
+      model: "gemini-2.5-flash",
+    };
+    const llm = new LLM(config, true, true);
+    // biome-ignore lint/suspicious/noExplicitAny: accessing internals for testing
+    provider = await (llm as any).getProvider();
+    generateContent = jest.fn();
+    generateContent.mockResolvedValue({ text: "ok" });
+    provider.genAI = { models: { generateContent } };
+    events = [];
+  });
+
+  it("sends prefixed content (role + parts only) to Gemini", async () => {
+    await provider.generateContent(
+      mixedMessages,
+      undefined,
+      false,
+      false,
+      undefined,
+      undefined,
+      events
+    );
+
+    const sent = generateContent.mock.calls[0][0].contents;
+    expect(sent).toEqual([
+      { role: "user", parts: [{ text: "hi" }] },
+      { role: "model", parts: [{ text: "reply" }] },
+      { role: "model", parts: [{ text: "SKIPPED: s" }] },
+      { role: "model", parts: [{ text: "INTERRUPTED: i" }] },
+      { role: "model", parts: [{ text: "SKIPPED/INTERRUPTED: b" }] },
+    ]);
+  });
+
+  it("logs exactly what was sent: prefixed content and no skipped/interrupted keys", async () => {
+    await provider.generateContent(
+      mixedMessages,
+      undefined,
+      false,
+      false,
+      undefined,
+      undefined,
+      events
+    );
+
+    const promptData = JSON.parse(events[0].payload.prompt);
+    expect(promptData.messages).toEqual(expectedLLMMessages);
+    expect(events[0].payload.prompt).not.toContain('"skipped"');
+    expect(events[0].payload.prompt).not.toContain('"interrupted"');
   });
 });

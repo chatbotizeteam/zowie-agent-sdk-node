@@ -27,6 +27,21 @@ export function formatMessageContent(message: Message): string {
   return message.content;
 }
 
+/**
+ * Builds the exact message list handed to the LLM provider: each message's
+ * content is prefixed with its delivery state and the `skipped` / `interrupted`
+ * flags are dropped (only the prefixed content is sent to the model). The same
+ * list is passed to the event log so the `llm_call` event reflects precisely
+ * what the model received.
+ */
+export function prepareMessagesForLLM(messages: Message[]): Message[] {
+  return messages.map((message) => ({
+    author: message.author,
+    content: formatMessageContent(message),
+    timestamp: message.timestamp,
+  }));
+}
+
 export abstract class BaseLLMProvider {
   protected readonly model: string;
   protected readonly apiKey: string | undefined;
