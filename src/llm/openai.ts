@@ -9,7 +9,7 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { OpenAIProviderConfig } from "../domain.js";
 import type { Event, Message, Persona } from "../protocol.js";
-import { BaseLLMProvider } from "./base.js";
+import { BaseLLMProvider, formatMessageContent } from "./base.js";
 
 export class OpenAIProvider extends BaseLLMProvider {
   private openai?: OpenAI;
@@ -294,7 +294,7 @@ export class OpenAIProvider extends BaseLLMProvider {
     for (const message of messages) {
       openaiMessages.push({
         role: message.author === "User" ? "user" : "assistant",
-        content: message.content,
+        content: formatMessageContent(message),
       });
     }
 

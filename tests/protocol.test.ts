@@ -5,6 +5,8 @@
 import {
   type ExternalAgentResponse,
   ExternalAgentResponseSchema,
+  filterMessages,
+  type Message,
   MessageSchema,
   MetadataSchema,
   PersonaSchema,
@@ -79,6 +81,77 @@ describe("Protocol Validation", () => {
       };
 
       expect(() => MessageSchema.parse(invalidMessage)).toThrow();
+    });
+
+    test("should validate chatbot message with skipped and interrupted flags", () => {
+      const chatbotMessage = {
+        author: "Chatbot" as const,
+        content: "Partial reply",
+        timestamp: "2024-01-01T12:00:00Z",
+        skipped: true,
+        interrupted: false,
+      };
+
+      const result = MessageSchema.parse(chatbotMessage);
+      expect(result).toEqual(chatbotMessage);
+    });
+
+    test("should leave skipped/interrupted undefined when omitted", () => {
+      const userMessage = {
+        author: "User" as const,
+        content: "Hi",
+        timestamp: "2024-01-01T12:00:00Z",
+      };
+
+      const result = MessageSchema.parse(userMessage);
+      expect(result.skipped).toBeUndefined();
+      expect(result.interrupted).toBeUndefined();
+    });
+  });
+
+  describe("filterMessages", () => {
+    const ts = "2024-01-01T12:00:00Z";
+    const user: Message = { author: "User", content: "u", timestamp: ts };
+    const chatbot: Message = { author: "Chatbot", content: "c", timestamp: ts };
+    const skipped: Message = { author: "Chatbot", content: "s", timestamp: ts, skipped: true };
+    const interrupted: Message = {
+      author: "Chatbot",
+      content: "i",
+      timestamp: ts,
+      interrupted: true,
+    };
+    const both: Message = {
+      author: "Chatbot",
+      content: "b",
+      timestamp: ts,
+      skipped: true,
+      interrupted: true,
+    };
+
+    test("excludes skipped and interrupted by default", () => {
+      const result = filterMessages([user, chatbot, skipped, interrupted, both], false, false);
+      expect(result).toEqual([user, chatbot]);
+    });
+
+    test("keeps skipped when opted in", () => {
+      const result = filterMessages([user, skipped, interrupted], true, false);
+      expect(result).toEqual([user, skipped]);
+    });
+
+    test("keeps interrupted when opted in", () => {
+      const result = filterMessages([user, skipped, interrupted], false, true);
+      expect(result).toEqual([user, interrupted]);
+    });
+
+    test("requires both flags to keep a message that is both skipped and interrupted", () => {
+      expect(filterMessages([both], true, false)).toEqual([]);
+      expect(filterMessages([both], false, true)).toEqual([]);
+      expect(filterMessages([both], true, true)).toEqual([both]);
+    });
+
+    test("leaves plain user and chatbot messages untouched", () => {
+      const result = filterMessages([user, chatbot], false, false);
+      expect(result).toEqual([user, chatbot]);
     });
   });
 

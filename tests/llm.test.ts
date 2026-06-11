@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { z } from "zod";
 import type { GoogleProviderConfig, OpenAIProviderConfig } from "../src/domain";
+import { formatMessageContent } from "../src/llm/base";
 import { LLM } from "../src/llm/index";
 import type { Message, Persona } from "../src/protocol";
 
@@ -619,6 +620,133 @@ describe("LLM Integration", () => {
       expect(events).toHaveLength(1);
       expect(events[0].type).toBe("llm_call");
       expect(events[0].payload.response).toContain("value1");
+    });
+  });
+});
+
+describe("formatMessageContent", () => {
+  const ts = "2024-01-01T12:00:00Z";
+  const base = (overrides: Partial<Message>): Message => ({
+    author: "Chatbot",
+    content: "Hello",
+    timestamp: ts,
+    ...overrides,
+  });
+
+  it("returns plain user content unchanged", () => {
+    expect(formatMessageContent(base({ author: "User" }))).toBe("Hello");
+  });
+
+  it("returns plain chatbot content unchanged", () => {
+    expect(formatMessageContent(base({}))).toBe("Hello");
+  });
+
+  it("prefixes SKIPPED when skipped is true", () => {
+    expect(formatMessageContent(base({ skipped: true }))).toBe("SKIPPED: Hello");
+  });
+
+  it("prefixes INTERRUPTED when interrupted is true", () => {
+    expect(formatMessageContent(base({ interrupted: true }))).toBe("INTERRUPTED: Hello");
+  });
+
+  it("prefixes SKIPPED/INTERRUPTED when both flags are true", () => {
+    expect(formatMessageContent(base({ skipped: true, interrupted: true }))).toBe(
+      "SKIPPED/INTERRUPTED: Hello"
+    );
+  });
+
+  it("leaves content unchanged when flags are explicitly false", () => {
+    expect(formatMessageContent(base({ skipped: false, interrupted: false }))).toBe("Hello");
+  });
+});
+
+describe("Provider message conversion", () => {
+  const ts = "2024-01-01T12:00:00Z";
+
+  // Mixed conversation: plain user, plain chatbot, skipped, interrupted, both.
+  const mixedMessages: Message[] = [
+    { author: "User", content: "hi", timestamp: ts },
+    { author: "Chatbot", content: "reply", timestamp: ts },
+    { author: "Chatbot", content: "s", timestamp: ts, skipped: true },
+    { author: "Chatbot", content: "i", timestamp: ts, interrupted: true },
+    { author: "Chatbot", content: "b", timestamp: ts, skipped: true, interrupted: true },
+  ];
+
+  describe("OpenAI prepareMessages", () => {
+    let provider: {
+      prepareMessages: (
+        messages: Message[],
+        systemInstruction?: string
+      ) => Array<{ role: string; content: string }>;
+    };
+
+    beforeEach(async () => {
+      const config: OpenAIProviderConfig = {
+        provider: "openai",
+        apiKey: "test-key",
+        model: "gpt-5-mini",
+      };
+      const llm = new LLM(config, true, true);
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
+      provider = await (llm as any).getProvider();
+    });
+
+    it("maps roles and prefixes flagged content", () => {
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
+      const result = (provider as any).prepareMessages(mixedMessages);
+
+      expect(result).toEqual([
+        { role: "user", content: "hi" },
+        { role: "assistant", content: "reply" },
+        { role: "assistant", content: "SKIPPED: s" },
+        { role: "assistant", content: "INTERRUPTED: i" },
+        { role: "assistant", content: "SKIPPED/INTERRUPTED: b" },
+      ]);
+    });
+
+    it("emits an unprefixed leading system message", () => {
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
+      const result = (provider as any).prepareMessages(
+        [{ author: "Chatbot", content: "x", timestamp: ts, skipped: true }],
+        "You are helpful"
+      );
+
+      expect(result).toEqual([
+        { role: "system", content: "You are helpful" },
+        { role: "assistant", content: "SKIPPED: x" },
+      ]);
+    });
+  });
+
+  describe("Google prepareHistory", () => {
+    let provider: {
+      prepareHistory: (
+        messages: Message[]
+      ) => Array<{ role: string; parts: Array<{ text: string }> }>;
+    };
+
+    beforeEach(async () => {
+      const config: GoogleProviderConfig = {
+        provider: "google",
+        apiKey: "test-key",
+        model: "gemini-2.5-flash",
+      };
+      const llm = new LLM(config, true, true);
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
+      provider = await (llm as any).getProvider();
+    });
+
+    it("maps roles and prefixes flagged content", () => {
+      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
+      const result = (provider as any).prepareHistory(mixedMessages);
+
+      expect(result).toEqual([
+        { role: "user", parts: [{ text: "hi" }] },
+        { role: "model", parts: [{ text: "reply" }] },
+        { role: "model", parts: [{ text: "SKIPPED: s" }] },
+        { role: "model", parts: [{ text: "INTERRUPTED: i" }] },
+        { role: "model", parts: [{ text: "SKIPPED/INTERRUPTED: b" }] },
+      ]);
     });
   });
 });

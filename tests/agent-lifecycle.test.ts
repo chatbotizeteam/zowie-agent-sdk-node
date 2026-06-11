@@ -24,6 +24,15 @@ class ErrorAgent extends Agent {
   }
 }
 
+class CapturingAgent extends Agent {
+  public capturedContents: string[] = [];
+
+  async handle(context: Context): Promise<AgentResponse> {
+    this.capturedContents = context.messages.map((m) => m.content);
+    return { type: "continue", message: "ok" };
+  }
+}
+
 describe("Agent Lifecycle", () => {
   let agent: TestAgent;
 
@@ -78,6 +87,8 @@ describe("Agent Lifecycle", () => {
         includeContextByDefault: false,
         includeHttpHeadersByDefault: false,
         includeRequestBodiesInEventsByDefault: false,
+        includeSkippedMessagesByDefault: true,
+        includeInterruptedMessagesByDefault: true,
         port: 4000,
       };
       const testAgent = new TestAgent(options);
@@ -152,6 +163,55 @@ describe("Agent Lifecycle", () => {
         },
       ],
     };
+
+    const requestWithFlaggedMessages = {
+      metadata: {
+        requestId: "test-flags",
+        chatbotId: "bot-456",
+        conversationId: "conv-789",
+        sequence: 1,
+      },
+      messages: [
+        { author: "User", content: "u", timestamp: new Date().toISOString() },
+        { author: "Chatbot", content: "c", timestamp: new Date().toISOString() },
+        {
+          author: "Chatbot",
+          content: "s",
+          timestamp: new Date().toISOString(),
+          skipped: true,
+        },
+        {
+          author: "Chatbot",
+          content: "i",
+          timestamp: new Date().toISOString(),
+          interrupted: true,
+        },
+      ],
+    };
+
+    const llmConfig = {
+      provider: "google" as const,
+      apiKey: "test-key",
+      model: "gemini-2.5-flash",
+    };
+
+    it("should drop skipped/interrupted messages by default", async () => {
+      const capturing = new CapturingAgent({ llmConfig });
+      await capturing.handleRequest(requestWithFlaggedMessages);
+
+      expect(capturing.capturedContents).toEqual(["u", "c"]);
+    });
+
+    it("should keep skipped/interrupted messages when opted in", async () => {
+      const capturing = new CapturingAgent({
+        llmConfig,
+        includeSkippedMessagesByDefault: true,
+        includeInterruptedMessagesByDefault: true,
+      });
+      await capturing.handleRequest(requestWithFlaggedMessages);
+
+      expect(capturing.capturedContents).toEqual(["u", "c", "s", "i"]);
+    });
 
     it("should handle valid requests", async () => {
       const response = await request(agent.app).post("/").send(validRequest);

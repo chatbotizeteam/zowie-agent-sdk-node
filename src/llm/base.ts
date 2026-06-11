@@ -9,6 +9,24 @@ import { getLogger } from "../logger.js";
 import type { Event, LLMCallEvent, Message, Persona } from "../protocol.js";
 import { getTimeMs } from "../utils.js";
 
+/**
+ * Prefixes message content with its delivery state so the LLM is aware the
+ * message was skipped or interrupted. Returns content unchanged when neither
+ * flag is set.
+ */
+export function formatMessageContent(message: Message): string {
+  if (message.skipped && message.interrupted) {
+    return `SKIPPED/INTERRUPTED: ${message.content}`;
+  }
+  if (message.skipped) {
+    return `SKIPPED: ${message.content}`;
+  }
+  if (message.interrupted) {
+    return `INTERRUPTED: ${message.content}`;
+  }
+  return message.content;
+}
+
 export abstract class BaseLLMProvider {
   protected readonly model: string;
   protected readonly apiKey: string | undefined;

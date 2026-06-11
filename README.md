@@ -363,9 +363,29 @@ const agent = new MyAgent({
   includeContextByDefault: true, // Include context in LLM calls
   includeHttpHeadersByDefault: true, // Include headers in event logs
   includeRequestBodiesInEventsByDefault: true, // Include HTTP request bodies in events
+  includeSkippedMessagesByDefault: false, // Keep chatbot messages flagged `skipped`
+  includeInterruptedMessagesByDefault: false, // Keep chatbot messages flagged `interrupted`
   logLevel: "info", // Logging level
 });
 ```
+
+`includeSkippedMessagesByDefault` and `includeInterruptedMessagesByDefault` both
+default to `false`. By default, chatbot messages that were skipped before delivery or
+interrupted mid-delivery are removed from `context.messages` (and therefore from any LLM
+calls). Set either to `true` to opt into receiving those messages. Leaving them unset
+preserves the behavior of earlier SDK versions, so upgrading is non-breaking.
+
+When these messages **are** included and passed to an LLM, the SDK prefixes their content so
+the model is aware of the delivery state. The prefix is applied only to the messages sent to
+the provider (OpenAI / Gemini) — your `context.messages` and the event logs keep the original
+content plus the `skipped` / `interrupted` flags:
+
+| Message flags | Content sent to the LLM        |
+| ------------------------------------- | ------------------------------ |
+| `skipped: true`                       | `SKIPPED: <content>`           |
+| `interrupted: true`                   | `INTERRUPTED: <content>`       |
+| `skipped: true` and `interrupted: true` | `SKIPPED/INTERRUPTED: <content>` |
+| neither                               | `<content>` (unchanged)        |
 
 ---
 
@@ -535,8 +555,15 @@ interface Message {
   author: "User" | "Chatbot";
   content: string;
   timestamp: Date;
+  skipped?: boolean; // Chatbot messages only: response was skipped before delivery
+  interrupted?: boolean; // Chatbot messages only: delivery was interrupted mid-message
 }
 ```
+
+`skipped` and `interrupted` are present only on Chatbot messages (omitted for User
+messages). By default these messages are filtered out of `messages` — enable
+`includeSkippedMessagesByDefault` / `includeInterruptedMessagesByDefault` on the agent to
+receive them. See [Agent Configuration Parameters](#agent-configuration-parameters).
 
 #### Persona
 
