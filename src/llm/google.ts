@@ -18,9 +18,20 @@ export class GoogleProvider extends BaseLLMProvider {
   constructor(
     config: GoogleProviderConfig,
     includePersonaDefault = true,
-    includeContextDefault = true
+    includeContextDefault = true,
+    includeRandomNonceDefault = false,
+    llmTimeoutMs?: number,
+    llmTimeoutRetries = 3
   ) {
-    super(config, "GoogleProvider", includePersonaDefault, includeContextDefault);
+    super(
+      config,
+      "GoogleProvider",
+      includePersonaDefault,
+      includeContextDefault,
+      includeRandomNonceDefault,
+      llmTimeoutMs,
+      llmTimeoutRetries
+    );
     this.thinkingBudget = config.thinkingBudget;
     this.vertexaiConfig = config.vertexai;
   }
@@ -123,21 +134,24 @@ export class GoogleProvider extends BaseLLMProvider {
     return this.withTiming(
       async () => {
         const response = await this.retryWithBackoff(() =>
-          genAI.models.generateContent({
-            model: this.model,
-            contents: chatHistory,
-            config: {
-              ...(systemInstructionText && {
-                systemInstruction: systemInstructionText,
-              }),
-              ...(this.thinkingBudget !== undefined && {
-                thinkingConfig: {
-                  thinkingBudget: this.thinkingBudget,
-                },
-              }),
-              ...parameters,
-            },
-          })
+          this.withTimeoutRetries((signal) =>
+            genAI.models.generateContent({
+              model: this.model,
+              contents: chatHistory,
+              config: {
+                ...(systemInstructionText && {
+                  systemInstruction: systemInstructionText,
+                }),
+                ...(this.thinkingBudget !== undefined && {
+                  thinkingConfig: {
+                    thinkingBudget: this.thinkingBudget,
+                  },
+                }),
+                ...parameters,
+                ...(signal && { abortSignal: signal }),
+              },
+            })
+          )
         );
         return response.text || "";
       },
@@ -177,23 +191,26 @@ export class GoogleProvider extends BaseLLMProvider {
     return this.withTiming(
       async () => {
         const response = await this.retryWithBackoff(() =>
-          genAI.models.generateContent({
-            model: this.model,
-            contents: chatHistory,
-            config: {
-              ...(systemInstructionText && {
-                systemInstruction: systemInstructionText,
-              }),
-              responseMimeType: "application/json",
-              responseSchema,
-              ...(this.thinkingBudget !== undefined && {
-                thinkingConfig: {
-                  thinkingBudget: this.thinkingBudget,
-                },
-              }),
-              ...parameters,
-            },
-          })
+          this.withTimeoutRetries((signal) =>
+            genAI.models.generateContent({
+              model: this.model,
+              contents: chatHistory,
+              config: {
+                ...(systemInstructionText && {
+                  systemInstruction: systemInstructionText,
+                }),
+                responseMimeType: "application/json",
+                responseSchema,
+                ...(this.thinkingBudget !== undefined && {
+                  thinkingConfig: {
+                    thinkingBudget: this.thinkingBudget,
+                  },
+                }),
+                ...parameters,
+                ...(signal && { abortSignal: signal }),
+              },
+            })
+          )
         );
 
         const content = response.text || "";
@@ -240,22 +257,25 @@ export class GoogleProvider extends BaseLLMProvider {
     return this.withTiming(
       async () => {
         const response = await this.retryWithBackoff(() =>
-          genAI.models.generateContent({
-            model: this.model,
-            contents: chatHistory,
-            config: {
-              ...(systemInstructionText && {
-                systemInstruction: systemInstructionText,
-              }),
-              candidateCount,
-              ...(this.thinkingBudget !== undefined && {
-                thinkingConfig: {
-                  thinkingBudget: this.thinkingBudget,
-                },
-              }),
-              ...parameters,
-            },
-          })
+          this.withTimeoutRetries((signal) =>
+            genAI.models.generateContent({
+              model: this.model,
+              contents: chatHistory,
+              config: {
+                ...(systemInstructionText && {
+                  systemInstruction: systemInstructionText,
+                }),
+                candidateCount,
+                ...(this.thinkingBudget !== undefined && {
+                  thinkingConfig: {
+                    thinkingBudget: this.thinkingBudget,
+                  },
+                }),
+                ...parameters,
+                ...(signal && { abortSignal: signal }),
+              },
+            })
+          )
         );
 
         const results: string[] = [];
@@ -311,24 +331,27 @@ export class GoogleProvider extends BaseLLMProvider {
     return this.withTiming(
       async () => {
         const response = await this.retryWithBackoff(() =>
-          genAI.models.generateContent({
-            model: this.model,
-            contents: chatHistory,
-            config: {
-              ...(systemInstructionText && {
-                systemInstruction: systemInstructionText,
-              }),
-              responseMimeType: "application/json",
-              responseSchema,
-              candidateCount,
-              ...(this.thinkingBudget !== undefined && {
-                thinkingConfig: {
-                  thinkingBudget: this.thinkingBudget,
-                },
-              }),
-              ...parameters,
-            },
-          })
+          this.withTimeoutRetries((signal) =>
+            genAI.models.generateContent({
+              model: this.model,
+              contents: chatHistory,
+              config: {
+                ...(systemInstructionText && {
+                  systemInstruction: systemInstructionText,
+                }),
+                responseMimeType: "application/json",
+                responseSchema,
+                candidateCount,
+                ...(this.thinkingBudget !== undefined && {
+                  thinkingConfig: {
+                    thinkingBudget: this.thinkingBudget,
+                  },
+                }),
+                ...parameters,
+                ...(signal && { abortSignal: signal }),
+              },
+            })
+          )
         );
 
         const results: T[] = [];

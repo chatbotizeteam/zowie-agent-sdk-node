@@ -830,3 +830,148 @@ describe("Google provider sends & logs prefixed content", () => {
     expect(events[0].payload.prompt).not.toContain('"interrupted"');
   });
 });
+
+describe("includeRandomNonceToPreventCaching", () => {
+  const config: OpenAIProviderConfig = {
+    provider: "openai",
+    apiKey: "test-key",
+    model: "gpt-5-mini",
+  };
+
+  // biome-ignore lint/suspicious/noExplicitAny: reaching into the protected builder for testing
+  const getProvider = async (llm: LLM): Promise<any> => (llm as any).getProvider();
+
+  it("prepends a nonce at the very beginning when enabled", async () => {
+    const llm = new LLM(config, false, false, true);
+    const provider = await getProvider(llm);
+
+    const systemInstruction = provider.buildSystemInstruction("Test instruction");
+
+    expect(systemInstruction.startsWith("[Nonce: ")).toBe(true);
+    expect(systemInstruction).toContain("<instructions>");
+  });
+
+  it("does not add a nonce when disabled (default)", async () => {
+    const llm = new LLM(config, false, false);
+    const provider = await getProvider(llm);
+
+    const systemInstruction = provider.buildSystemInstruction("Test instruction");
+
+    expect(systemInstruction).not.toContain("[Nonce: ");
+  });
+
+  it("generates a different nonce on each call", async () => {
+    const llm = new LLM(config, false, false, true);
+    const provider = await getProvider(llm);
+
+    const first = provider.buildSystemInstruction("Test instruction");
+    const second = provider.buildSystemInstruction("Test instruction");
+
+    expect(first).not.toEqual(second);
+  });
+});
+
+describe("llmTimeoutMs / llmTimeoutRetries", () => {
+  const config: OpenAIProviderConfig = {
+    provider: "openai",
+    apiKey: "test-key",
+    model: "gpt-5-mini",
+  };
+
+  // biome-ignore lint/suspicious/noExplicitAny: reaching into the protected helper for testing
+  const getProvider = async (llm: LLM): Promise<any> => (llm as any).getProvider();
+
+  // Rejects only once the per-attempt timeout aborts the signal (simulates a hung request).
+  const hangUntilAbort = (signal: AbortSignal | undefined): Promise<never> =>
+    new Promise((_, reject) => {
+      if (!signal) {
+        return; // never settles; only used in configured-timeout tests where signal is defined
+      }
+      if (signal.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      signal.addEventListener("abort", () => reject(signal.reason));
+    });
+
+  it("runs once with no signal when no timeout is configured", async () => {
+    const llm = new LLM(config, false, false);
+    const provider = await getProvider(llm);
+
+    let calls = 0;
+    let receivedSignal: AbortSignal | undefined = {} as AbortSignal;
+    const result = await provider.withTimeoutRetries((signal: AbortSignal | undefined) => {
+      calls++;
+      receivedSignal = signal;
+      return Promise.resolve("ok");
+    });
+
+    expect(result).toBe("ok");
+    expect(calls).toBe(1);
+    expect(receivedSignal).toBeUndefined();
+  });
+
+  it("returns immediately when the operation resolves before the timeout", async () => {
+    const llm = new LLM(config, false, false, false, 50, 3);
+    const provider = await getProvider(llm);
+
+    let calls = 0;
+    let receivedSignal: AbortSignal | undefined;
+    const result = await provider.withTimeoutRetries((signal: AbortSignal | undefined) => {
+      calls++;
+      receivedSignal = signal;
+      return Promise.resolve("fast");
+    });
+
+    expect(result).toBe("fast");
+    expect(calls).toBe(1);
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("retries on timeout and then succeeds", async () => {
+    const llm = new LLM(config, false, false, false, 20, 3);
+    const provider = await getProvider(llm);
+
+    let calls = 0;
+    const result = await provider.withTimeoutRetries((signal: AbortSignal | undefined) => {
+      calls++;
+      if (calls < 3) {
+        return hangUntilAbort(signal); // time out the first two attempts
+      }
+      return Promise.resolve("recovered");
+    });
+
+    expect(result).toBe("recovered");
+    expect(calls).toBe(3);
+  });
+
+  it("throws a timeout error after exhausting retries", async () => {
+    const llm = new LLM(config, false, false, false, 20, 2);
+    const provider = await getProvider(llm);
+
+    let calls = 0;
+    await expect(
+      provider.withTimeoutRetries((signal: AbortSignal | undefined) => {
+        calls++;
+        return hangUntilAbort(signal);
+      })
+    ).rejects.toThrow(/timed out after 20ms/);
+
+    expect(calls).toBe(3); // llmTimeoutRetries (2) + 1
+  });
+
+  it("propagates non-timeout errors without consuming retries", async () => {
+    const llm = new LLM(config, false, false, false, 50, 3);
+    const provider = await getProvider(llm);
+
+    let calls = 0;
+    await expect(
+      provider.withTimeoutRetries(() => {
+        calls++;
+        return Promise.reject(new Error("boom"));
+      })
+    ).rejects.toThrow("boom");
+
+    expect(calls).toBe(1);
+  });
+});
