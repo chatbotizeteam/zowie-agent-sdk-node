@@ -19,9 +19,20 @@ export class OpenAIProvider extends BaseLLMProvider {
   constructor(
     config: OpenAIProviderConfig,
     includePersonaDefault = true,
-    includeContextDefault = true
+    includeContextDefault = true,
+    includeRandomNonceDefault = false,
+    llmTimeoutMs?: number,
+    llmTimeoutRetries = 3
   ) {
-    super(config, "OpenAIProvider", includePersonaDefault, includeContextDefault);
+    super(
+      config,
+      "OpenAIProvider",
+      includePersonaDefault,
+      includeContextDefault,
+      includeRandomNonceDefault,
+      llmTimeoutMs,
+      llmTimeoutRetries
+    );
     this.reasoningEffort = config.reasoningEffort;
     this.baseURL = config.baseURL;
   }
@@ -68,14 +79,19 @@ export class OpenAIProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const completion = await openai.chat.completions.create({
-          model: this.model,
-          messages: openaiMessages,
-          ...(this.reasoningEffort && {
-            reasoning_effort: this.reasoningEffort,
-          }),
-          ...parameters,
-        });
+        const completion = await this.withTimeoutRetries((signal) =>
+          openai.chat.completions.create(
+            {
+              model: this.model,
+              messages: openaiMessages,
+              ...(this.reasoningEffort && {
+                reasoning_effort: this.reasoningEffort,
+              }),
+              ...parameters,
+            },
+            signal ? { signal } : undefined
+          )
+        );
 
         const message = completion.choices[0]?.message;
         const content = message?.content;
@@ -131,15 +147,20 @@ export class OpenAIProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const completion = await openai.chat.completions.parse({
-          model: this.model,
-          messages: openaiMessages,
-          response_format: zodResponseFormat(schema, "response"),
-          ...(this.reasoningEffort && {
-            reasoning_effort: this.reasoningEffort,
-          }),
-          ...parameters,
-        });
+        const completion = await this.withTimeoutRetries((signal) =>
+          openai.chat.completions.parse(
+            {
+              model: this.model,
+              messages: openaiMessages,
+              response_format: zodResponseFormat(schema, "response"),
+              ...(this.reasoningEffort && {
+                reasoning_effort: this.reasoningEffort,
+              }),
+              ...parameters,
+            },
+            signal ? { signal } : undefined
+          )
+        );
 
         const message = completion.choices[0]?.message;
         if (!message?.parsed) {
@@ -184,15 +205,20 @@ export class OpenAIProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const completion = await openai.chat.completions.create({
-          model: this.model,
-          messages: openaiMessages,
-          n: candidateCount,
-          ...(this.reasoningEffort && {
-            reasoning_effort: this.reasoningEffort,
-          }),
-          ...parameters,
-        });
+        const completion = await this.withTimeoutRetries((signal) =>
+          openai.chat.completions.create(
+            {
+              model: this.model,
+              messages: openaiMessages,
+              n: candidateCount,
+              ...(this.reasoningEffort && {
+                reasoning_effort: this.reasoningEffort,
+              }),
+              ...parameters,
+            },
+            signal ? { signal } : undefined
+          )
+        );
 
         const results: string[] = [];
         for (const choice of completion.choices) {
@@ -252,16 +278,21 @@ export class OpenAIProvider extends BaseLLMProvider {
 
     return this.withTiming(
       async () => {
-        const completion = await openai.chat.completions.parse({
-          model: this.model,
-          messages: openaiMessages,
-          response_format: zodResponseFormat(schema, "response"),
-          n: candidateCount,
-          ...(this.reasoningEffort && {
-            reasoning_effort: this.reasoningEffort,
-          }),
-          ...parameters,
-        });
+        const completion = await this.withTimeoutRetries((signal) =>
+          openai.chat.completions.parse(
+            {
+              model: this.model,
+              messages: openaiMessages,
+              response_format: zodResponseFormat(schema, "response"),
+              n: candidateCount,
+              ...(this.reasoningEffort && {
+                reasoning_effort: this.reasoningEffort,
+              }),
+              ...parameters,
+            },
+            signal ? { signal } : undefined
+          )
+        );
 
         const results: T[] = [];
         for (const choice of completion.choices) {

@@ -2,6 +2,7 @@
  * Base LLM provider interface and common functionality
  */
 
+import { randomUUID } from "node:crypto";
 import type winston from "winston";
 import type { z } from "zod";
 import type { GoogleProviderConfig, LLMConfig, OpenAIProviderConfig } from "../domain.js";
@@ -47,18 +48,27 @@ export abstract class BaseLLMProvider {
   protected readonly apiKey: string | undefined;
   protected readonly includePersonaDefault: boolean;
   protected readonly includeContextDefault: boolean;
+  protected readonly includeRandomNonceDefault: boolean;
+  protected readonly llmTimeoutMs: number | undefined;
+  protected readonly llmTimeoutRetries: number;
   protected readonly logger: winston.Logger;
 
   constructor(
     config: OpenAIProviderConfig | GoogleProviderConfig,
     providerName: string,
     includePersonaDefault = true,
-    includeContextDefault = true
+    includeContextDefault = true,
+    includeRandomNonceDefault = false,
+    llmTimeoutMs?: number,
+    llmTimeoutRetries = 3
   ) {
     this.model = config.model;
     this.apiKey = config.apiKey;
     this.includePersonaDefault = includePersonaDefault;
     this.includeContextDefault = includeContextDefault;
+    this.includeRandomNonceDefault = includeRandomNonceDefault;
+    this.llmTimeoutMs = llmTimeoutMs;
+    this.llmTimeoutRetries = llmTimeoutRetries;
     this.logger = getLogger(`zowie_agent.${providerName}`);
   }
 
@@ -136,6 +146,11 @@ export abstract class BaseLLMProvider {
     const shouldIncludeContext = includeContext ?? this.includeContextDefault;
 
     const parts: string[] = [];
+
+    // Add a random nonce at the very beginning to prevent prompt caching
+    if (this.includeRandomNonceDefault) {
+      parts.push(`[Nonce: ${randomUUID()}]`);
+    }
 
     // Add persona if needed
     if (shouldIncludePersona && persona) {
@@ -215,6 +230,50 @@ export abstract class BaseLLMProvider {
   }
 
   /**
+   * Run an operation with a per-attempt timeout, retrying on timeout up to
+   * `llmTimeoutRetries` times. When no timeout is configured, the operation runs
+   * once with no abort signal (unchanged behavior).
+   */
+  protected async withTimeoutRetries<T>(
+    operation: (signal: AbortSignal | undefined) => Promise<T>
+  ): Promise<T> {
+    if (this.llmTimeoutMs === undefined) {
+      return operation(undefined);
+    }
+
+    const maxAttempts = this.llmTimeoutRetries + 1;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const signal = AbortSignal.timeout(this.llmTimeoutMs);
+      try {
+        return await operation(signal);
+      } catch (error) {
+        lastError = error;
+
+        // signal.aborted is true ONLY when our timeout fired. This is SDK-agnostic
+        // detection, robust to however OpenAI/genai wrap the underlying abort error.
+        if (signal.aborted) {
+          if (attempt < maxAttempts - 1) {
+            this.logger.warn(
+              `${this.constructor.name.replace("Provider", "")} LLM request timed out after ${this.llmTimeoutMs}ms (attempt ${attempt + 1}/${maxAttempts}). Retrying...`
+            );
+            continue;
+          }
+          throw new Error(
+            `LLM request timed out after ${this.llmTimeoutMs}ms (${this.llmTimeoutRetries} retries exhausted)`
+          );
+        }
+
+        // Non-timeout error: propagate immediately, do not consume timeout retries.
+        throw error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
    * Measure execution time and create event
    */
   protected async withTiming<T>(
@@ -283,7 +342,14 @@ export class LLM {
   private readonly provider?: BaseLLMProvider | undefined;
   private readonly providerPromise?: Promise<BaseLLMProvider> | undefined;
 
-  constructor(config?: LLMConfig, includePersonaDefault = true, includeContextDefault = true) {
+  constructor(
+    config?: LLMConfig,
+    includePersonaDefault = true,
+    includeContextDefault = true,
+    includeRandomNonceDefault = false,
+    llmTimeoutMs?: number,
+    llmTimeoutRetries = 3
+  ) {
     if (!config) {
       // Type assertion needed since TypeScript can't infer conditional property assignment
       (this as unknown as { provider?: undefined; providerPromise?: undefined }).provider =
@@ -296,22 +362,42 @@ export class LLM {
     this.providerPromise = this.initializeProvider(
       config,
       includePersonaDefault,
-      includeContextDefault
+      includeContextDefault,
+      includeRandomNonceDefault,
+      llmTimeoutMs,
+      llmTimeoutRetries
     );
   }
 
   private async initializeProvider(
     config: LLMConfig,
     includePersonaDefault: boolean,
-    includeContextDefault: boolean
+    includeContextDefault: boolean,
+    includeRandomNonceDefault: boolean,
+    llmTimeoutMs: number | undefined,
+    llmTimeoutRetries: number
   ): Promise<BaseLLMProvider> {
     if (config.provider === "openai") {
       const { OpenAIProvider } = await import("./openai.js");
-      return new OpenAIProvider(config, includePersonaDefault, includeContextDefault);
+      return new OpenAIProvider(
+        config,
+        includePersonaDefault,
+        includeContextDefault,
+        includeRandomNonceDefault,
+        llmTimeoutMs,
+        llmTimeoutRetries
+      );
     }
     if (config.provider === "google") {
       const { GoogleProvider } = await import("./google.js");
-      return new GoogleProvider(config, includePersonaDefault, includeContextDefault);
+      return new GoogleProvider(
+        config,
+        includePersonaDefault,
+        includeContextDefault,
+        includeRandomNonceDefault,
+        llmTimeoutMs,
+        llmTimeoutRetries
+      );
     }
 
     throw new Error(`Unknown LLM provider`);

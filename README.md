@@ -361,6 +361,9 @@ const agent = new MyAgent({
   authConfig, // Authentication (optional)
   includePersonaByDefault: true, // Include persona in LLM calls
   includeContextByDefault: true, // Include context in LLM calls
+  includeRandomNonceToPreventCaching: false, // Prepend a random nonce to the system instruction to prevent caching
+  llmTimeoutMs: undefined, // Per-attempt timeout for LLM calls in ms (unset = no timeout)
+  llmTimeoutRetries: 3, // Retries on LLM timeout; only used when llmTimeoutMs is set
   includeHttpHeadersByDefault: true, // Include headers in event logs
   includeRequestBodiesInEventsByDefault: true, // Include HTTP request bodies in events
   includeSkippedMessagesByDefault: false, // Keep chatbot messages flagged `skipped`
@@ -368,6 +371,13 @@ const agent = new MyAgent({
   logLevel: "info", // Logging level
 });
 ```
+
+`llmTimeoutMs` is unset by default, so LLM calls have no SDK-level timeout (they rely on
+the underlying provider SDK's own defaults). When you set it, each LLM request attempt is
+bounded by that many milliseconds; on a timeout the call is retried up to `llmTimeoutRetries`
+times (default `3`, so up to 4 attempts), each attempt getting a fresh timeout budget.
+`llmTimeoutRetries` is ignored when `llmTimeoutMs` is unset. Non-timeout errors are not
+retried by this mechanism.
 
 `includeSkippedMessagesByDefault` and `includeInterruptedMessagesByDefault` both
 default to `false`. By default, chatbot messages that were skipped before delivery or

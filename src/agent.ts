@@ -56,6 +56,15 @@ export interface AgentOptions {
   /** Whether to include context in LLM calls by default (default: true) */
   includeContextByDefault?: boolean | undefined;
 
+  /** Whether to prepend a random nonce to the system instruction to prevent caching (default: false) */
+  includeRandomNonceToPreventCaching?: boolean | undefined;
+
+  /** Per-attempt timeout for LLM calls in milliseconds. When unset, no timeout is applied (default: unset) */
+  llmTimeoutMs?: number | undefined;
+
+  /** Number of retries on LLM timeout; only used when llmTimeoutMs is set (default: 3) */
+  llmTimeoutRetries?: number | undefined;
+
   /** Whether to include HTTP headers in event logs (default: true) */
   includeHttpHeadersByDefault?: boolean | undefined;
 
@@ -103,6 +112,9 @@ export abstract class Agent {
   private readonly httpTimeoutMs?: number | undefined;
   private readonly includePersonaByDefault: boolean;
   private readonly includeContextByDefault: boolean;
+  private readonly includeRandomNonceToPreventCaching: boolean;
+  private readonly llmTimeoutMs: number | undefined;
+  private readonly llmTimeoutRetries: number;
   private readonly includeHttpHeadersByDefault: boolean;
   private readonly includeRequestBodiesInEventsByDefault: boolean;
   private readonly includeSkippedMessagesByDefault: boolean;
@@ -122,6 +134,9 @@ export abstract class Agent {
     this.httpTimeoutMs = options.httpTimeoutMs;
     this.includePersonaByDefault = options.includePersonaByDefault ?? true;
     this.includeContextByDefault = options.includeContextByDefault ?? true;
+    this.includeRandomNonceToPreventCaching = options.includeRandomNonceToPreventCaching ?? false;
+    this.llmTimeoutMs = options.llmTimeoutMs;
+    this.llmTimeoutRetries = options.llmTimeoutRetries ?? 3;
     this.includeHttpHeadersByDefault = options.includeHttpHeadersByDefault ?? true;
     this.includeRequestBodiesInEventsByDefault =
       options.includeRequestBodiesInEventsByDefault ?? true;
@@ -137,7 +152,10 @@ export abstract class Agent {
     this.baseLLM = new LLM(
       this.llmConfig,
       this.includePersonaByDefault,
-      this.includeContextByDefault
+      this.includeContextByDefault,
+      this.includeRandomNonceToPreventCaching,
+      this.llmTimeoutMs,
+      this.llmTimeoutRetries
     );
 
     this.baseHTTPClient = new HTTPClient(
