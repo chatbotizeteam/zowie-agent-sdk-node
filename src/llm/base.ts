@@ -12,20 +12,16 @@ import { getTimeMs } from "../utils.js";
 
 /**
  * Prefixes message content with its delivery state so the LLM is aware the
- * message was skipped or interrupted. Returns content unchanged when neither
- * flag is set.
+ * message was skipped, interrupted, and/or cancelled. Multiple flags are joined
+ * with `/` in declaration order (e.g. `SKIPPED/INTERRUPTED:`). Returns content
+ * unchanged when no flag is set.
  */
 export function formatMessageContent(message: Message): string {
-  if (message.skipped && message.interrupted) {
-    return `SKIPPED/INTERRUPTED: ${message.content}`;
-  }
-  if (message.skipped) {
-    return `SKIPPED: ${message.content}`;
-  }
-  if (message.interrupted) {
-    return `INTERRUPTED: ${message.content}`;
-  }
-  return message.content;
+  const flags: string[] = [];
+  if (message.skipped) flags.push("SKIPPED");
+  if (message.interrupted) flags.push("INTERRUPTED");
+  if (message.cancelled) flags.push("CANCELLED");
+  return flags.length ? `${flags.join("/")}: ${message.content}` : message.content;
 }
 
 /**

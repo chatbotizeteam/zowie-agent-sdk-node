@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`cancelled` message flag** - `Message` now supports an optional `cancelled: boolean`
+  field for chatbot messages whose response was cancelled
+  - New `includeCancelledMessagesByDefault` agent option (default `false`) controls whether
+    cancelled messages are kept in `context.messages`; mirrors
+    `includeSkippedMessagesByDefault` / `includeInterruptedMessagesByDefault`
+  - When included and sent to an LLM, cancelled messages are prefixed with `CANCELLED:`
+    (combined with other flags as e.g. `SKIPPED/CANCELLED:`)
+  - Non-breaking: defaults preserve prior behavior
+
 ## [0.6.0] - 2025-12-05
 
 ### Added

@@ -186,6 +186,12 @@ describe("Agent Lifecycle", () => {
           timestamp: new Date().toISOString(),
           interrupted: true,
         },
+        {
+          author: "Chatbot",
+          content: "x",
+          timestamp: new Date().toISOString(),
+          cancelled: true,
+        },
       ],
     };
 
@@ -195,22 +201,33 @@ describe("Agent Lifecycle", () => {
       model: "gemini-2.5-flash",
     };
 
-    it("should drop skipped/interrupted messages by default", async () => {
+    it("should drop skipped/interrupted/cancelled messages by default", async () => {
       const capturing = new CapturingAgent({ llmConfig });
       await capturing.handleRequest(requestWithFlaggedMessages);
 
       expect(capturing.capturedContents).toEqual(["u", "c"]);
     });
 
-    it("should keep skipped/interrupted messages when opted in", async () => {
+    it("should keep skipped/interrupted/cancelled messages when opted in", async () => {
       const capturing = new CapturingAgent({
         llmConfig,
         includeSkippedMessagesByDefault: true,
         includeInterruptedMessagesByDefault: true,
+        includeCancelledMessagesByDefault: true,
       });
       await capturing.handleRequest(requestWithFlaggedMessages);
 
-      expect(capturing.capturedContents).toEqual(["u", "c", "s", "i"]);
+      expect(capturing.capturedContents).toEqual(["u", "c", "s", "i", "x"]);
+    });
+
+    it("should keep only cancelled messages when only cancelled is opted in", async () => {
+      const capturing = new CapturingAgent({
+        llmConfig,
+        includeCancelledMessagesByDefault: true,
+      });
+      await capturing.handleRequest(requestWithFlaggedMessages);
+
+      expect(capturing.capturedContents).toEqual(["u", "c", "x"]);
     });
 
     it("should handle valid requests", async () => {
