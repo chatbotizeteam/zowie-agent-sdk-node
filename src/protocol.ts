@@ -31,6 +31,8 @@ export const MessageSchema = z.object({
    * seen or heard only part of the content.
    */
   interrupted: z.boolean().optional(),
+  /** Chatbot messages only: the chatbot response was cancelled. */
+  cancelled: z.boolean().optional(),
 });
 
 export type Message = z.infer<typeof MessageSchema>;
@@ -148,18 +150,20 @@ export function parseIncomingRequest(data: unknown): IncomingRequest {
 }
 
 /**
- * Filters out chatbot messages flagged `skipped` or `interrupted` unless the
- * corresponding flag opts them in. User messages never carry these flags and
- * are always kept.
+ * Filters out chatbot messages flagged `skipped`, `interrupted`, or `cancelled`
+ * unless the corresponding flag opts them in. User messages never carry these
+ * flags and are always kept.
  */
 export function filterMessages(
   messages: Message[],
   includeSkipped: boolean,
-  includeInterrupted: boolean
+  includeInterrupted: boolean,
+  includeCancelled: boolean
 ): Message[] {
   return messages.filter((m) => {
     if (m.skipped && !includeSkipped) return false;
     if (m.interrupted && !includeInterrupted) return false;
+    if (m.cancelled && !includeCancelled) return false;
     return true;
   });
 }

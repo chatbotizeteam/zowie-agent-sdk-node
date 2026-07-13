@@ -649,25 +649,41 @@ describe("formatMessageContent", () => {
     expect(formatMessageContent(base({ interrupted: true }))).toBe("INTERRUPTED: Hello");
   });
 
+  it("prefixes CANCELLED when cancelled is true", () => {
+    expect(formatMessageContent(base({ cancelled: true }))).toBe("CANCELLED: Hello");
+  });
+
   it("prefixes SKIPPED/INTERRUPTED when both flags are true", () => {
     expect(formatMessageContent(base({ skipped: true, interrupted: true }))).toBe(
       "SKIPPED/INTERRUPTED: Hello"
     );
   });
 
+  it("joins multiple flags with / in declaration order", () => {
+    expect(formatMessageContent(base({ skipped: true, cancelled: true }))).toBe(
+      "SKIPPED/CANCELLED: Hello"
+    );
+    expect(formatMessageContent(base({ skipped: true, interrupted: true, cancelled: true }))).toBe(
+      "SKIPPED/INTERRUPTED/CANCELLED: Hello"
+    );
+  });
+
   it("leaves content unchanged when flags are explicitly false", () => {
-    expect(formatMessageContent(base({ skipped: false, interrupted: false }))).toBe("Hello");
+    expect(
+      formatMessageContent(base({ skipped: false, interrupted: false, cancelled: false }))
+    ).toBe("Hello");
   });
 });
 
 // Mixed conversation reused across conversion tests:
-// plain user, plain chatbot, skipped, interrupted, both.
+// plain user, plain chatbot, skipped, interrupted, cancelled, both.
 const conversionTs = "2024-01-01T12:00:00Z";
 const mixedMessages: Message[] = [
   { author: "User", content: "hi", timestamp: conversionTs },
   { author: "Chatbot", content: "reply", timestamp: conversionTs },
   { author: "Chatbot", content: "s", timestamp: conversionTs, skipped: true },
   { author: "Chatbot", content: "i", timestamp: conversionTs, interrupted: true },
+  { author: "Chatbot", content: "x", timestamp: conversionTs, cancelled: true },
   { author: "Chatbot", content: "b", timestamp: conversionTs, skipped: true, interrupted: true },
 ];
 
@@ -677,6 +693,7 @@ const expectedLLMMessages = [
   { author: "Chatbot", content: "reply", timestamp: conversionTs },
   { author: "Chatbot", content: "SKIPPED: s", timestamp: conversionTs },
   { author: "Chatbot", content: "INTERRUPTED: i", timestamp: conversionTs },
+  { author: "Chatbot", content: "CANCELLED: x", timestamp: conversionTs },
   { author: "Chatbot", content: "SKIPPED/INTERRUPTED: b", timestamp: conversionTs },
 ];
 
@@ -686,10 +703,11 @@ describe("prepareMessagesForLLM", () => {
     expect(result).toEqual(expectedLLMMessages);
   });
 
-  it("does not carry skipped/interrupted keys on any message", () => {
+  it("does not carry skipped/interrupted/cancelled keys on any message", () => {
     for (const message of prepareMessagesForLLM(mixedMessages)) {
       expect("skipped" in message).toBe(false);
       expect("interrupted" in message).toBe(false);
+      expect("cancelled" in message).toBe(false);
     }
   });
 
@@ -747,6 +765,7 @@ describe("OpenAI provider sends & logs prefixed content", () => {
       { role: "assistant", content: "reply" },
       { role: "assistant", content: "SKIPPED: s" },
       { role: "assistant", content: "INTERRUPTED: i" },
+      { role: "assistant", content: "CANCELLED: x" },
       { role: "assistant", content: "SKIPPED/INTERRUPTED: b" },
     ]);
   });
@@ -766,6 +785,7 @@ describe("OpenAI provider sends & logs prefixed content", () => {
     expect(promptData.messages).toEqual(expectedLLMMessages);
     expect(events[0].payload.prompt).not.toContain('"skipped"');
     expect(events[0].payload.prompt).not.toContain('"interrupted"');
+    expect(events[0].payload.prompt).not.toContain('"cancelled"');
   });
 });
 
@@ -809,6 +829,7 @@ describe("Google provider sends & logs prefixed content", () => {
       { role: "model", parts: [{ text: "reply" }] },
       { role: "model", parts: [{ text: "SKIPPED: s" }] },
       { role: "model", parts: [{ text: "INTERRUPTED: i" }] },
+      { role: "model", parts: [{ text: "CANCELLED: x" }] },
       { role: "model", parts: [{ text: "SKIPPED/INTERRUPTED: b" }] },
     ]);
   });
@@ -828,6 +849,7 @@ describe("Google provider sends & logs prefixed content", () => {
     expect(promptData.messages).toEqual(expectedLLMMessages);
     expect(events[0].payload.prompt).not.toContain('"skipped"');
     expect(events[0].payload.prompt).not.toContain('"interrupted"');
+    expect(events[0].payload.prompt).not.toContain('"cancelled"');
   });
 });
 

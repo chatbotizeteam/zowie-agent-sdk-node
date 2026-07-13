@@ -77,6 +77,9 @@ export interface AgentOptions {
   /** Whether to keep chatbot messages flagged `interrupted` in context.messages (default: false) */
   includeInterruptedMessagesByDefault?: boolean | undefined;
 
+  /** Whether to keep chatbot messages flagged `cancelled` in context.messages (default: false) */
+  includeCancelledMessagesByDefault?: boolean | undefined;
+
   /** Logging level (default: "info") */
   logLevel?: string | undefined;
 
@@ -119,6 +122,7 @@ export abstract class Agent {
   private readonly includeRequestBodiesInEventsByDefault: boolean;
   private readonly includeSkippedMessagesByDefault: boolean;
   private readonly includeInterruptedMessagesByDefault: boolean;
+  private readonly includeCancelledMessagesByDefault: boolean;
   private readonly logLevel: string;
   private readonly authValidator: AuthValidator;
   private readonly baseLLM: LLM;
@@ -142,6 +146,7 @@ export abstract class Agent {
       options.includeRequestBodiesInEventsByDefault ?? true;
     this.includeSkippedMessagesByDefault = options.includeSkippedMessagesByDefault ?? false;
     this.includeInterruptedMessagesByDefault = options.includeInterruptedMessagesByDefault ?? false;
+    this.includeCancelledMessagesByDefault = options.includeCancelledMessagesByDefault ?? false;
     this.logLevel = options.logLevel ?? "info";
     this.authValidator = new AuthValidator(options.authConfig);
 
@@ -216,11 +221,12 @@ export abstract class Agent {
 
     this.logger.info("Processing request", { requestId, path });
 
-    // Exclude skipped/interrupted chatbot messages unless explicitly opted in.
+    // Exclude skipped/interrupted/cancelled chatbot messages unless explicitly opted in.
     const messages = filterMessages(
       request.messages,
       this.includeSkippedMessagesByDefault,
-      this.includeInterruptedMessagesByDefault
+      this.includeInterruptedMessagesByDefault,
+      this.includeCancelledMessagesByDefault
     );
 
     const valueStorage: Record<string, unknown> = {};

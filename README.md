@@ -368,6 +368,7 @@ const agent = new MyAgent({
   includeRequestBodiesInEventsByDefault: true, // Include HTTP request bodies in events
   includeSkippedMessagesByDefault: false, // Keep chatbot messages flagged `skipped`
   includeInterruptedMessagesByDefault: false, // Keep chatbot messages flagged `interrupted`
+  includeCancelledMessagesByDefault: false, // Keep chatbot messages flagged `cancelled`
   logLevel: "info", // Logging level
 });
 ```
@@ -379,27 +380,32 @@ times (default `3`, so up to 4 attempts), each attempt getting a fresh timeout b
 `llmTimeoutRetries` is ignored when `llmTimeoutMs` is unset. Non-timeout errors are not
 retried by this mechanism.
 
-`includeSkippedMessagesByDefault` and `includeInterruptedMessagesByDefault` both
-default to `false`. By default, chatbot messages that were skipped before delivery or
-interrupted mid-delivery are removed from `context.messages` (and therefore from any LLM
-calls). Set either to `true` to opt into receiving those messages. Leaving them unset
-preserves the behavior of earlier SDK versions, so upgrading is non-breaking.
+`includeSkippedMessagesByDefault`, `includeInterruptedMessagesByDefault`, and
+`includeCancelledMessagesByDefault` all default to `false`. By default, chatbot messages that
+were skipped before delivery, interrupted mid-delivery, or cancelled are removed from
+`context.messages` (and therefore from any LLM calls). Set any of them to `true` to opt into
+receiving those messages. Leaving them unset preserves the behavior of earlier SDK versions,
+so upgrading is non-breaking.
 
 When these messages **are** included and passed to an LLM, the SDK encodes the delivery state
-directly into the message content by prefixing it. The `skipped` / `interrupted` properties
-themselves are **not** sent to the provider (OpenAI / Gemini) — only the prefixed content is:
+directly into the message content by prefixing it. The `skipped` / `interrupted` / `cancelled`
+properties themselves are **not** sent to the provider (OpenAI / Gemini) — only the prefixed
+content is. When multiple flags are set, their labels are joined with `/` in the order
+skipped → interrupted → cancelled:
 
 | Message flags | Content sent to the LLM        |
 | ------------------------------------- | ------------------------------ |
 | `skipped: true`                       | `SKIPPED: <content>`           |
 | `interrupted: true`                   | `INTERRUPTED: <content>`       |
+| `cancelled: true`                     | `CANCELLED: <content>`         |
 | `skipped: true` and `interrupted: true` | `SKIPPED/INTERRUPTED: <content>` |
-| neither                               | `<content>` (unchanged)        |
+| multiple flags                        | labels joined with `/`, e.g. `SKIPPED/CANCELLED: <content>` |
+| none                                  | `<content>` (unchanged)        |
 
 The `llm_call` event log records exactly what was sent to the provider — i.e. the prefixed
 content with the flags stripped — so the log faithfully reflects what the model saw. Your
 handler's `context.messages` is untouched: it still contains the original content plus the
-`skipped` / `interrupted` flags.
+`skipped` / `interrupted` / `cancelled` flags.
 
 ---
 
@@ -571,13 +577,15 @@ interface Message {
   timestamp: Date;
   skipped?: boolean; // Chatbot messages only: response was skipped before delivery
   interrupted?: boolean; // Chatbot messages only: delivery was interrupted mid-message
+  cancelled?: boolean; // Chatbot messages only: response was cancelled
 }
 ```
 
-`skipped` and `interrupted` are present only on Chatbot messages (omitted for User
-messages). By default these messages are filtered out of `messages` — enable
-`includeSkippedMessagesByDefault` / `includeInterruptedMessagesByDefault` on the agent to
-receive them. See [Agent Configuration Parameters](#agent-configuration-parameters).
+`skipped`, `interrupted`, and `cancelled` are present only on Chatbot messages (omitted for
+User messages). By default these messages are filtered out of `messages` — enable
+`includeSkippedMessagesByDefault` / `includeInterruptedMessagesByDefault` /
+`includeCancelledMessagesByDefault` on the agent to receive them. See
+[Agent Configuration Parameters](#agent-configuration-parameters).
 
 #### Persona
 
